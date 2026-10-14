@@ -156,6 +156,9 @@ npm install          # Electron + electron-builder (solo la primera vez)
 npm run dist         # → desktop/release/DBStudio-Setup-1.0.0.exe
 ```
 
+Al terminar, `npm run dist` deja en la raíz del proyecto el acceso directo
+**`Instalador DBStudio.lnk`**, que apunta al instalador más reciente.
+
 El instalador crea accesos directos y deja DBStudio en la **bandeja del sistema**:
 al cerrar la ventana sigue vigilando las **alertas** y avisa con notificaciones de
 Windows. Desde el ícono de la bandeja: abrir, ver alertas, *Iniciar con Windows* y salir.

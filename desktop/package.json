@@ -8,7 +8,8 @@
   "scripts": {
     "stage": "node build.mjs",
     "start": "node build.mjs && electron stage",
-    "dist": "node build.mjs && electron-builder --win nsis --publish never"
+    "dist": "node build.mjs && electron-builder --win nsis --publish never && node shortcut.mjs",
+    "shortcut": "node shortcut.mjs"
   },
   "devDependencies": {
     "electron": "44.5.1",

@@ -64,7 +64,8 @@ bash run.sh          # API (puerto libre desde 4000) + UI Vite (desde 5180); Ctr
 - `npm run stage` arma `desktop/stage` (UI compilada en `web/`, fuentes del server en `server/`,
   dependencias del server en `stage/node_modules` declaradas en `stage/package.json`: si quedan
   en `stage/server/node_modules` electron-builder NO las empaqueta).
-- `npm run dist` → `desktop/release/DBStudio-Setup-<versión>.exe` (NSIS, sin firma de código).
+- `npm run dist` → `desktop/release/DBStudio-Setup-<versión>.exe` (NSIS, sin firma de código); luego `shortcut.mjs` crea
+  `Instalador DBStudio.lnk` en la raíz apuntando al instalador más reciente (`*.lnk` en .gitignore).
 - Electron no implementa `window.prompt`: usar `askText()` de `lib/dialogs.jsx`.
 
 ### Datos del usuario

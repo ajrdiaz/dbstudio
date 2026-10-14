@@ -6,3 +6,4 @@ dist/
 desktop/stage/
 desktop/release/
 *.tmp
+*.lnk
