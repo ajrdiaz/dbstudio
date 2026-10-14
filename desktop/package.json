@@ -1,0 +1,37 @@
+{
+  "name": "dbstudio-desktop",
+  "productName": "DBStudio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DBStudio — cliente MySQL/MariaDB de escritorio",
+  "author": "Aj",
+  "scripts": {
+    "stage": "node build.mjs",
+    "start": "node build.mjs && electron stage",
+    "dist": "node build.mjs && electron-builder --win nsis --publish never"
+  },
+  "devDependencies": {
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "pe.dbstudio.app",
+    "productName": "DBStudio",
+    "directories": { "app": "stage", "output": "release" },
+    "files": ["**/*"],
+    "asarUnpack": ["**/*.node"],
+    "win": {
+      "target": ["nsis"],
+      "icon": "assets/icon-512.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DBStudio",
+      "artifactName": "DBStudio-Setup-${version}.${ext}"
+    }
+  }
+}

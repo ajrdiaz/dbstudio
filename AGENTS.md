@@ -47,6 +47,7 @@ bash run.sh          # API (puerto libre desde 4000) + UI Vite (desde 5180); Ctr
 | `dbinfo.js` | Estadísticas/mantenimiento de tablas, modelo del diagrama ER, importación por lotes. |
 | `tools.js` | Comparar esquemas (script de sync) y copiar tablas (jobs con progreso). |
 | `ddl.js` | Diseñador de tablas (CREATE/ALTER). |
+| `monitor.js` | Alertas: reglas por conexión (replicación, caído, conexiones, consultas largas/lentas), estado alerta/resuelta, historial y SSE `/api/monitor/stream`. Arranca con `start()`. |
 
 ### Client (`client/src/`)
 - `App.jsx`: pestañas (`kind`: query, data, structure, designer, server, tools, database), modales, atajos globales (Ctrl+P buscar, Ctrl+B panel).
@@ -55,6 +56,16 @@ bash run.sh          # API (puerto libre desde 4000) + UI Vite (desde 5180); Ctr
 - `lib/env.jsx`: entornos de conexión, `guardWrite` (confirmación antes de escribir) y `ConfirmHost`.
 - `lib/polling.js`: auto-refresh que se pausa si la pestaña no se ve o tras un error.
 - `i18n.jsx`: diccionarios `es` y `en`.
+
+### Desktop (`desktop/`)
+- Electron. `main.mjs` arranca el API en el mismo proceso (`start({ port: 4799…, staticDir: web })`),
+  ventana + bandeja, notificaciones nativas desde `monitorEvents`, iniciar con Windows (`--hidden`).
+  Log en `%APPDATA%\DBStudio\desktop.log`.
+- `npm run stage` arma `desktop/stage` (UI compilada en `web/`, fuentes del server en `server/`,
+  dependencias del server en `stage/node_modules` declaradas en `stage/package.json`: si quedan
+  en `stage/server/node_modules` electron-builder NO las empaqueta).
+- `npm run dist` → `desktop/release/DBStudio-Setup-<versión>.exe` (NSIS, sin firma de código).
+- Electron no implementa `window.prompt`: usar `askText()` de `lib/dialogs.jsx`.
 
 ### Datos del usuario
 En la carpeta de datos (por defecto `~/.dbstudio`, hoy en OneDrive):
@@ -97,15 +108,21 @@ En la carpeta de datos (por defecto `~/.dbstudio`, hoy en OneDrive):
   más una segunda instancia con `--server-id=2 --read-only` para replicación).
 - En Playwright contra la app real del usuario (5180), interceptar
   `PUT /api/workspace` para no tocar su sesión.
+- Errores en tiempo de ejecución (p. ej. usar una función antes de definirla en `App.jsx`)
+  no los detecta esbuild: **siempre cargar la app en el navegador** tras tocar `App.jsx`.
+- App de escritorio: probar con `DBSTUDIO_DATA_DIR=<scratch>` (datos aislados),
+  `--hidden --remote-debugging-port=9333` y conectarse por CDP. **No** cambiar `USERPROFILE`
+  (Electron no arranca bien). Probar también el **empaquetado** (`release/win-unpacked/DBStudio.exe`),
+  no solo `electron stage`.
 - Probar en navegador los flujos tocados (tema claro y oscuro) y apagar al
   final los servidores de prueba.
 
 ## Estado / pendientes
 
-- En curso: **alertas** (monitor en segundo plano: replicación, servidor
-  caído, conexiones al límite, consultas largas; notificación de Windows) y
-  **app de escritorio** (Electron, instalador NSIS, ícono en bandeja, iniciar
-  con Windows).
+- Hecho: alertas + app de escritorio (instalador sin firmar: Windows SmartScreen
+  muestra "Editor desconocido" la primera vez).
+- Idea evaluada: migrar el backend a Go + Wails reduciría instalador (~15 MB) y RAM; no
+  mejora la velocidad de consultas. Pospuesto hasta que el usuario lo pida.
 - Limitaciones conocidas: comparar esquemas no detecta renombres; copiar BD
   solo copia tablas; resultados editables solo de una tabla con PK; en
   conexiones de solo lectura los `CALL` quedan bloqueados.

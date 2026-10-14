@@ -148,6 +148,21 @@ escribir cualquier ruta (Dropbox, carpeta de red…).
   `DBSTUDIO_DATA_DIR` tiene prioridad sobre ella.
 - Evita usar la app en dos PCs a la vez con la misma carpeta: la nube se queda con el último cambio.
 
+## App de escritorio (Windows)
+
+```bash
+cd desktop
+npm install          # Electron + electron-builder (solo la primera vez)
+npm run dist         # → desktop/release/DBStudio-Setup-1.0.0.exe
+```
+
+El instalador crea accesos directos y deja DBStudio en la **bandeja del sistema**:
+al cerrar la ventana sigue vigilando las **alertas** y avisa con notificaciones de
+Windows. Desde el ícono de la bandeja: abrir, ver alertas, *Iniciar con Windows* y salir.
+Usa la misma carpeta de datos que la versión web (conexiones, consultas, alertas).
+El instalador no está firmado: la primera vez Windows puede mostrar "Editor desconocido"
+(→ *Más información* → *Ejecutar de todas formas*).
+
 ## Arquitectura
 
 ```
