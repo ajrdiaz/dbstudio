@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.playwright-mcp/
+*.log
+.DS_Store
+desktop/stage/
+desktop/release/
+*.tmp
