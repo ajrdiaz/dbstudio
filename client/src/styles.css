@@ -670,3 +670,5 @@ a.link:hover { text-decoration: underline; }
 .hist-kind.warning { color: #c2620a; }
 :root[data-theme="dark"] .hist-kind.warning { color: #f0a040; }
 .hist-msg { font-size: 12px; max-width: 520px; }
+body.resizing-rows { cursor: row-resize; user-select: none; }
+body.resizing-rows iframe, body.resizing-rows .monaco-editor { pointer-events: none; }

@@ -247,10 +247,23 @@ export default function QueryTab({ tabId, connId, database, initialSql, savedQue
 
   function startSplitDrag(e) {
     e.preventDefault();
-    const host = e.currentTarget.parentElement;
-    const rect = host.getBoundingClientRect();
-    const mv = (ev) => setEditorPct(Math.min(85, Math.max(12, ((ev.clientY - rect.top) / rect.height) * 100)));
-    const up = () => { window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up); };
+    // Relative drag: move the editor's bottom edge by exactly what the mouse
+    // moves. (Using the pointer position against the whole pane made the bar
+    // jump down by the toolbar's height on the first click.)
+    const pane = e.currentTarget.parentElement;
+    const editorEl = e.currentTarget.previousElementSibling;
+    const paneH = pane.getBoundingClientRect().height;
+    const startY = e.clientY;
+    const startH = editorEl.getBoundingClientRect().height;
+    const mv = (ev) => {
+      const h = startH + (ev.clientY - startY);
+      setEditorPct(Math.min(85, Math.max(12, (h / paneH) * 100)));
+    };
+    const up = () => {
+      document.body.classList.remove('resizing-rows');
+      window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up);
+    };
+    document.body.classList.add('resizing-rows');
     window.addEventListener('mousemove', mv);
     window.addEventListener('mouseup', up);
   }
