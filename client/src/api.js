@@ -100,6 +100,16 @@ export const api = {
   search: (id, params) => req(`/connections/${id}/search?${new URLSearchParams(params)}`),
   ddl: (id, db, kind, name) => req(`/connections/${id}/databases/${encodeURIComponent(db)}/ddl/${kind}/${encodeURIComponent(name)}`),
 
+  // background monitor / alert rules
+  monitor: {
+    state: () => req('/monitor'),
+    create: (rule) => req('/monitor/rules', { method: 'POST', body: rule }),
+    update: (id, rule) => req(`/monitor/rules/${id}`, { method: 'PUT', body: rule }),
+    remove: (id) => req(`/monitor/rules/${id}`, { method: 'DELETE' }),
+    test: (id) => req(`/monitor/rules/${id}/test`, { method: 'POST' }),
+    clearHistory: () => req('/monitor/history/clear', { method: 'POST' }),
+  },
+
   // editor sessions (one dedicated connection per SQL tab)
   sessions: {
     open: (connId) => req(`/connections/${connId}/sessions`, { method: 'POST' }),

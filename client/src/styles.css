@@ -642,3 +642,31 @@ a.link:hover { text-decoration: underline; }
 .erd-relg.dim { opacity: 0.2; }
 .erd-legend { position: absolute; left: 10px; bottom: 6px; pointer-events: none; }
 .erd-sel { position: absolute; right: 10px; top: 10px; display: flex; gap: 8px; align-items: center; box-shadow: 0 4px 14px rgba(0,0,0,0.2); background: var(--panel); }
+
+/* ---------- Alerts ---------- */
+.toolbar .bell { position: relative; }
+.toolbar .bell.ringing { border-color: var(--danger); color: var(--danger); }
+.bell-count { display: inline-block; margin-left: 6px; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px; font-weight: 700; text-align: center; }
+.alerts-tab { display: flex; flex-direction: column; }
+.alerts-body { display: grid; gap: 14px; align-content: start; padding: 10px 12px; }
+.alerts-body section { display: grid; gap: 6px; }
+.ok-line { color: var(--ok); }
+.alert-card { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; padding: 8px 10px; border-radius: 6px; border: 1px solid; }
+.alert-card.warning { border-color: #e07a14; background: color-mix(in srgb, #e07a14 9%, var(--panel)); }
+.alert-card.critical { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 9%, var(--panel)); }
+.alert-card .alert-level { font-weight: 700; font-size: 12px; }
+.alert-card.warning .alert-level { color: #c2620a; }
+.alert-card.critical .alert-level { color: var(--danger); }
+:root[data-theme="dark"] .alert-card.warning .alert-level { color: #f0a040; }
+.alert-card .alert-msg { flex-basis: 100%; font-size: 12.5px; }
+.rules-table tr.off td { opacity: 0.5; }
+.rule-status { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 8px; background: var(--grid-head); color: var(--muted); }
+.rule-status.ok { color: var(--ok); }
+.rule-status.firing { background: var(--danger); color: #fff; }
+.rule-msg { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist-kind { font-weight: 600; font-size: 12px; white-space: nowrap; }
+.hist-kind.resolved { color: var(--ok); }
+.hist-kind.critical { color: var(--danger); }
+.hist-kind.warning { color: #c2620a; }
+:root[data-theme="dark"] .hist-kind.warning { color: #f0a040; }
+.hist-msg { font-size: 12px; max-width: 520px; }

@@ -13,6 +13,8 @@ import ToolsTab from './components/ToolsTab.jsx';
 import SearchModal from './components/SearchModal.jsx';
 import DatabaseTab from './components/DatabaseTab.jsx';
 import ImportModal from './components/ImportModal.jsx';
+import AlertsTab from './components/AlertsTab.jsx';
+import { useAlertStream, browserNotify } from './lib/alerts.js';
 import { useI18n } from './i18n.jsx';
 import { tabHasOpenTx, anyOpenTx, releaseAllSessions } from './lib/editorSessions.js';
 import { setConnectionRegistry, ConfirmHost, EnvBanner, EnvBadge, envColor, getConn } from './lib/env.jsx';
@@ -37,6 +39,8 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [importModal, setImportModal] = useState(null); // { connId, db, table? }
   const [importedVersion, setImportedVersion] = useState(0); // bump: data tabs reload
+  const [alertCount, setAlertCount] = useState(0); // rules currently firing
+  const [alertsVersion, setAlertsVersion] = useState(0); // bump: alerts tab reloads
   const [toast, setToast] = useState(null);
   const [savedReloadKey, setSavedReloadKey] = useState(0); // bump to refresh Saved/History panels
   const [schemaVersion, setSchemaVersion] = useState(0); // bump to re-fetch tree objects
@@ -68,6 +72,20 @@ export default function App() {
     document.documentElement.dataset.theme = theme;
     try { localStorage.setItem('dbstudio-theme', theme); } catch { /* ignore */ }
   }, [theme]);
+
+  // Alerts: live events from the background monitor + the firing count.
+  const refreshAlertCount = useCallback(() => {
+    api.monitor.state().then((s) => setAlertCount(s.active)).catch(() => {});
+  }, []);
+  useEffect(() => { refreshAlertCount(); }, [refreshAlertCount]);
+  useAlertStream((ev) => {
+    refreshAlertCount();
+    setAlertsVersion((v) => v + 1);
+    const title = ev.kind === 'resolved' ? t('al.notifResolved', { name: ev.connName }) : t('al.notifFired', { name: ev.connName });
+    const body = `${t('al.t_' + ev.type)}: ${ev.message}`;
+    notify(`${title} — ${body}`, ev.kind === 'resolved' ? 'ok' : 'err');
+    browserNotify(title, body, openAlerts);
+  });
 
   // Ctrl+P: search objects (like "go to" in VS Code).
   useEffect(() => {
@@ -159,11 +177,20 @@ export default function App() {
     openTab({ kind: 'structure', title: `⚙︎ ${table}`, connId, db, table });
   const openQuery = (connId, db) =>
     openTab({ kind: 'query', title: db ? `SQL · ${db}` : 'SQL', connId, database: db, sql: 'SELECT 1;' });
-  const openServer = (connId) => {
+  const openServer = (connId, view) => {
     const existing = tabs.find((x) => x.kind === 'server' && x.connId === connId);
-    if (existing) { setActiveTab(existing.id); return; }
+    if (existing) {
+      if (view) updateTabState(existing.id, { view });
+      setActiveTab(existing.id);
+      return;
+    }
     const c = connections.find((x) => x.id === connId);
-    openTab({ kind: 'server', title: `⛭︎ ${c?.name || 'Server'}`, connId });
+    openTab({ kind: 'server', title: `⛭︎ ${c?.name || 'Server'}`, connId, view });
+  };
+  const openAlerts = () => {
+    const existing = tabs.find((x) => x.kind === 'alerts');
+    if (existing) { setActiveTab(existing.id); return; }
+    openTab({ kind: 'alerts', title: `🔔︎ ${t('al.title')}` });
   };
   // One "database" tab per connection+db (stats, maintenance, ER diagram).
   const openDatabase = (connId, db, view) => {
@@ -242,6 +269,9 @@ export default function App() {
           <option value="es">🇪🇸 ES</option>
           <option value="en">🇬🇧 EN</option>
         </select>
+        <button className={'bell' + (alertCount ? ' ringing' : '')} title={t('al.title')} onClick={openAlerts}>
+          🔔︎ {t('al.title')}{alertCount > 0 && <span className="bell-count">{alertCount}</span>}
+        </button>
         <button title={t('storage.title')} onClick={() => setStorageModal(true)}>{t('nav.storage')}</button>
         <button title={t('nav.toggleTheme')} onClick={() => setTheme((v) => (v === 'dark' ? 'light' : 'dark'))}>
           {theme === 'dark' ? t('nav.light') : t('nav.dark')}
@@ -322,6 +352,7 @@ export default function App() {
                     toast={notify}
                   />
                 )}
+                {t.kind === 'alerts' && <AlertsTab connections={connections} onOpenServer={openServer} reloadKey={alertsVersion} toast={notify} />}
                 {t.kind === 'database' && <DatabaseTab connId={t.connId} db={t.db} view={t.view} onViewChange={(v) => updateTabState(t.id, { view: v })} onOpenData={openData} onOpenStructure={openStructure} toast={notify} />}
                 {t.kind === 'server' && <ServerTab connId={t.connId} onOpenScript={openScript} view={t.view} onViewChange={(v) => updateTabState(t.id, { view: v })} toast={notify} />}
                 {t.kind === 'tools' && <ToolsTab connections={connections} preset={t.preset} view={t.view} onViewChange={(v) => updateTabState(t.id, { view: v })} onOpenScript={openScript} toast={notify} />}

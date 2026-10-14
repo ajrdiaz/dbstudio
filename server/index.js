@@ -22,6 +22,7 @@ import { registerTools } from './tools.js';
 import { registerObjects } from './objects.js';
 import { registerDbInfo } from './dbinfo.js';
 import { assertWritable } from './sqlKind.js';
+import { registerMonitor, startMonitor } from './monitor.js';
 import { registerSessions, getSession, refreshTxState, publicState, closeSessionsFor } from './sessions.js';
 
 const app = express();
@@ -524,6 +525,7 @@ registerSessions(app, { h, getPool });
 registerObjects(app, { h, getPool });
 registerDbInfo(app, { h, getPool });
 registerTools(app, { h, getPool, getConnectionRaw });
+registerMonitor(app, { h });
 
 // Start the API (used by `node index.js` and by the desktop app).
 // Listens on the loopback interface only, unless HOST says otherwise.
@@ -537,6 +539,8 @@ export function start({
     app.use(express.static(staticDir));
     app.get(/^(?!\/api\/).*/, (_req, res) => res.sendFile(path.join(staticDir, 'index.html')));
   }
+  // Alert rules are checked in the background for as long as the API runs.
+  startMonitor({ getPool, getConnectionRaw });
   return new Promise((resolve, reject) => {
     const server = app.listen(port, host, () => resolve({ server, port: server.address().port, host }));
     server.on('error', reject);
