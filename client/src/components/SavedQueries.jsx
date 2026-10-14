@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { useI18n } from '../i18n.jsx';
+import { askText } from '../lib/dialogs.jsx';
 
 // List of saved queries (favorites). Click to open in a new SQL tab.
 export default function SavedQueries({ reloadKey, onOpen, toast }) {
@@ -22,7 +23,7 @@ export default function SavedQueries({ reloadKey, onOpen, toast }) {
 
   async function rename(e, q) {
     e.stopPropagation();
-    const name = prompt(t('saved.renamePrompt'), q.name);
+    const name = await askText({ title: t('saved.rename'), label: t('saved.renamePrompt'), value: q.name });
     if (!name || name === q.name) return;
     try { await api.updateQuery(q.id, { name }); load(); }
     catch (e) { toast(e.message, 'err'); }

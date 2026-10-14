@@ -15,6 +15,7 @@ import DatabaseTab from './components/DatabaseTab.jsx';
 import ImportModal from './components/ImportModal.jsx';
 import AlertsTab from './components/AlertsTab.jsx';
 import { useAlertStream, browserNotify } from './lib/alerts.js';
+import { PromptHost } from './lib/dialogs.jsx';
 import { useI18n } from './i18n.jsx';
 import { tabHasOpenTx, anyOpenTx, releaseAllSessions } from './lib/editorSessions.js';
 import { setConnectionRegistry, ConfirmHost, EnvBanner, EnvBadge, envColor, getConn } from './lib/env.jsx';
@@ -86,6 +87,14 @@ export default function App() {
     notify(`${title} — ${body}`, ev.kind === 'resolved' ? 'ok' : 'err');
     browserNotify(title, body, openAlerts);
   });
+
+  // Desktop app: clicking a native alert notification opens the alerts tab.
+  const openAlertsRef = useRef(null);
+  useEffect(() => {
+    const h = () => openAlertsRef.current?.();
+    window.addEventListener('dbstudio:open-alerts', h);
+    return () => window.removeEventListener('dbstudio:open-alerts', h);
+  }, []);
 
   // Ctrl+P: search objects (like "go to" in VS Code).
   useEffect(() => {
@@ -192,6 +201,7 @@ export default function App() {
     if (existing) { setActiveTab(existing.id); return; }
     openTab({ kind: 'alerts', title: `🔔︎ ${t('al.title')}` });
   };
+  openAlertsRef.current = openAlerts; // used by the desktop notification handler above
   // One "database" tab per connection+db (stats, maintenance, ER diagram).
   const openDatabase = (connId, db, view) => {
     const existing = tabs.find((x) => x.kind === 'database' && x.connId === connId && x.db === db);
@@ -381,6 +391,7 @@ export default function App() {
         />
       )}
       <ConfirmHost />
+      <PromptHost />
       {importModal && (
         <ImportModal {...importModal} toast={notify}
           onClose={() => setImportModal(null)}

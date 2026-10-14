@@ -4,6 +4,7 @@ import SavedQueries from './SavedQueries.jsx';
 import History from './History.jsx';
 import { useI18n } from '../i18n.jsx';
 import { EnvBadge, envColor } from '../lib/env.jsx';
+import { askText } from '../lib/dialogs.jsx';
 
 // Reusable tree node.
 function Node({ label, icon, caret, open, selected, onToggle, onClick, onDouble, right, children, depth = 0, stripe, drag }) {
@@ -100,7 +101,7 @@ export default function Sidebar({
   }
   async function renameGroup(e, g) {
     e.stopPropagation();
-    const name = window.prompt(t('groups.renamePrompt'), g);
+    const name = await askText({ title: t('groups.rename'), label: t('groups.renamePrompt'), value: g });
     if (name == null || name.trim() === g) return;
     try {
       for (const c of connections.filter((x) => x.group === g)) await api.updateConnection(c.id, { group: name.trim() });

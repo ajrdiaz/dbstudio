@@ -5,6 +5,7 @@ import EditableGrid from './EditableGrid.jsx';
 import ExplainView from './ExplainView.jsx';
 import { guardWrite, cancelledError } from '../lib/env.jsx';
 import { setTabSession } from '../lib/editorSessions.js';
+import { askText } from '../lib/dialogs.jsx';
 import { format as formatSqlText } from 'sql-formatter';
 import { ensureProvider, setSchema } from '../lib/completion.js';
 import { splitStatements, statementAt } from '../lib/sqlSplit.js';
@@ -298,7 +299,7 @@ export default function QueryTab({ tabId, connId, database, initialSql, savedQue
         await api.updateQuery(linkedQuery, { sql: text, database: db });
         toast(t('query.updated'), 'ok');
       } else {
-        const name = prompt(t('query.nameThis'));
+        const name = (await askText({ title: t('query.save'), label: t('query.nameThis') }))?.trim();
         if (!name) return;
         const q = await api.createQuery({ name, sql: text, database: db, connectionId: connId });
         setLinkedQuery(q.id);
