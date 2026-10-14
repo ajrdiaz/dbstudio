@@ -156,6 +156,10 @@ npm install          # Electron + electron-builder (solo la primera vez)
 npm run dist         # → desktop/release/DBStudio-Setup-1.0.0.exe
 ```
 
+Para publicar una versión nueva tras agregar una funcionalidad: `npm run release`
+(revisa compatibilidad web/escritorio, sube la versión, construye y prueba el instalador).
+El app instalado detecta la versión nueva y ofrece actualizarse.
+
 Al terminar, `npm run dist` deja en la raíz del proyecto el acceso directo
 **`Instalador DBStudio.lnk`**, que apunta al instalador más reciente.
 

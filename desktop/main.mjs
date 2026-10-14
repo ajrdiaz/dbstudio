@@ -30,8 +30,13 @@ function log(...a) {
 process.on('uncaughtException', (e) => log('uncaught', e));
 process.on('unhandledRejection', (e) => log('unhandled', e));
 
+// `--smoke-test` (used by `npm run release`): start the packaged app headless,
+// verify the server, UI and dependencies, write the result and quit.
+const SMOKE = process.argv.includes('--smoke-test');
+if (SMOKE) app.setPath('userData', path.join(app.getPath('temp'), `dbstudio-smoke-${process.pid}`));
+
 app.setAppUserModelId('pe.dbstudio.app'); // required for Windows notifications
-if (!app.requestSingleInstanceLock()) {
+if (!SMOKE && !app.requestSingleInstanceLock()) {
   log('another instance is running; exiting');
   app.quit();
   process.exit(0);
@@ -137,6 +142,56 @@ function showWindow() {
   win.focus();
 }
 
+// ---- updates: a newer installer in the project's desktop/release folder ----
+const buildInfo = (() => {
+  try { return JSON.parse(fs.readFileSync(path.join(here, 'build-info.json'), 'utf8')); } catch { return null; }
+})();
+const cmpVer = (a, b) => {
+  const x = a.split('.').map(Number); const y = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0);
+  return 0;
+};
+let pendingUpdate = null; // { version, file }
+let notifiedVersion = null;
+
+function findUpdate() {
+  const dir = buildInfo?.releaseDir;
+  if (!dir || !fs.existsSync(dir)) return null;
+  let best = null;
+  for (const f of fs.readdirSync(dir)) {
+    const m = /^DBStudio-Setup-(\d+\.\d+\.\d+)\.exe$/.exec(f);
+    if (m && cmpVer(m[1], app.getVersion()) > 0 && (!best || cmpVer(m[1], best.version) > 0)) best = { version: m[1], file: path.join(dir, f) };
+  }
+  return best;
+}
+function offerUpdate(u) {
+  const choice = dialog.showMessageBoxSync({
+    type: 'info', buttons: ['Instalar ahora', 'Más tarde'], defaultId: 0, cancelId: 1, title: 'DBStudio',
+    message: `Hay una nueva versión de DBStudio: ${u.version} (tienes ${app.getVersion()}).`,
+    detail: 'DBStudio se cerrará y se abrirá el instalador. Tus conexiones, consultas y alertas se conservan.',
+  });
+  if (choice !== 0) return;
+  log('installing update', u.version);
+  shell.openPath(u.file);
+  quitting = true;
+  setTimeout(() => app.quit(), 800);
+}
+function checkUpdate(manual = false) {
+  const u = findUpdate();
+  pendingUpdate = u;
+  updateTray();
+  if (!u) {
+    if (manual) dialog.showMessageBox({ type: 'info', title: 'DBStudio', message: `Tienes la última versión (${app.getVersion()}).` });
+    return;
+  }
+  if (manual) { offerUpdate(u); return; }
+  if (notifiedVersion === u.version) return;
+  notifiedVersion = u.version;
+  const n = new Notification({ title: `DBStudio ${u.version} disponible`, body: 'Clic para instalar la nueva versión.', icon: asset('icon-256.png') });
+  n.on('click', () => offerUpdate(u));
+  n.show();
+}
+
 // ---- tray ----
 function activeAlerts() {
   try { return monitor?.monitorState().active || 0; } catch { return 0; }
@@ -150,6 +205,11 @@ function updateTray() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Abrir DBStudio', click: showWindow },
     { label: n ? `Ver alertas (${n} activa${n === 1 ? '' : 's'})` : 'Ver alertas', click: () => { showWindow(); win.webContents.send('open-alerts'); } },
+    { type: 'separator' },
+    pendingUpdate
+      ? { label: `⬆ Instalar versión ${pendingUpdate.version}`, click: () => offerUpdate(pendingUpdate) }
+      : { label: 'Buscar actualizaciones', click: () => checkUpdate(true) },
+    { label: `Versión ${app.getVersion()}`, enabled: false },
     { type: 'separator' },
     {
       label: 'Iniciar con Windows', type: 'checkbox', checked: login.openAtLogin,
@@ -188,6 +248,7 @@ app.on('window-all-closed', () => { if (!settings.keepInTray) app.quit(); });
 
 app.whenReady().then(async () => {
   loadSettings();
+  if (SMOKE) { await smokeTest(); return; }
   try {
     await startServer();
     log('server on port', port);
@@ -202,4 +263,32 @@ app.whenReady().then(async () => {
   updateTray();
   setInterval(updateTray, 30000).unref();
   createWindow();
+  setTimeout(() => checkUpdate(), 15000);
+  setInterval(() => checkUpdate(), 30 * 60 * 1000).unref();
 });
+
+async function smokeTest() {
+  const out = process.env.DBSTUDIO_SMOKE_OUT;
+  const result = { version: app.getVersion(), build: buildInfo, checks: {} };
+  let ok = false;
+  try {
+    await startServer();
+    const base = `http://127.0.0.1:${port}`;
+    const page = await fetch(`${base}/`).then((r) => r.text());
+    result.checks.ui = /<div id="root">/.test(page);
+    result.checks.api = (await fetch(`${base}/api/settings/storage`)).ok;
+    result.checks.monitor = (await fetch(`${base}/api/monitor`)).ok;
+    // Every server dependency must load from inside the package.
+    const pkg = JSON.parse(fs.readFileSync(path.join(here, 'package.json'), 'utf8'));
+    result.checks.deps = {};
+    for (const d of Object.keys(pkg.dependencies || {})) {
+      try { await import(d); result.checks.deps[d] = true; } catch (e) { result.checks.deps[d] = String(e.message || e); }
+    }
+    ok = result.checks.ui && result.checks.api && result.checks.monitor && Object.values(result.checks.deps).every((v) => v === true);
+  } catch (e) {
+    result.error = String(e.stack || e);
+  }
+  result.ok = ok;
+  if (out) fs.writeFileSync(out, JSON.stringify(result, null, 2));
+  app.exit(ok ? 0 : 1);
+}

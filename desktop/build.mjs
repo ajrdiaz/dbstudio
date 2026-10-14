@@ -23,10 +23,15 @@ fs.mkdirSync(path.join(stage, 'server'), { recursive: true });
 for (const f of ['main.mjs', 'preload.cjs']) fs.copyFileSync(path.join(here, f), path.join(stage, f));
 fs.cpSync(path.join(here, 'assets'), path.join(stage, 'assets'), { recursive: true });
 
+// The whole server source tree (subfolders included), minus deps and manifests.
 const serverDir = path.join(root, 'server');
-for (const f of fs.readdirSync(serverDir)) {
-  if (f.endsWith('.js')) fs.copyFileSync(path.join(serverDir, f), path.join(stage, 'server', f));
-}
+fs.cpSync(serverDir, path.join(stage, 'server'), {
+  recursive: true,
+  filter: (src) => {
+    const rel = path.relative(serverDir, src);
+    return !rel.split(/[\\/]/).includes('node_modules') && !/^package(-lock)?\.json$/.test(path.basename(src));
+  },
+});
 const serverPkg = JSON.parse(fs.readFileSync(path.join(serverDir, 'package.json'), 'utf8'));
 // Only "type": "module" is needed next to the sources; dependencies live at the stage root.
 fs.writeFileSync(path.join(stage, 'server', 'package.json'), JSON.stringify({ type: 'module', private: true }, null, 2));
@@ -47,4 +52,11 @@ fs.writeFileSync(path.join(stage, 'package.json'), JSON.stringify({
 fs.copyFileSync(path.join(serverDir, 'package-lock.json'), path.join(stage, 'package-lock.json'));
 console.log('› Instalando dependencias del servidor (producción)…');
 run('npm ci --omit=dev --omit=optional --no-audit --no-fund', stage);
-console.log('✔ stage listo');
+// Build info for the desktop app's "new version available" check.
+let commit = '';
+try { commit = execSync('git rev-parse --short HEAD', { cwd: root }).toString().trim(); } catch { /* not a git checkout */ }
+fs.writeFileSync(path.join(stage, 'build-info.json'), JSON.stringify({
+  version: pkg.version, commit, builtAt: new Date().toISOString(),
+  releaseDir: path.join(here, 'release'),
+}, null, 2));
+console.log(`✔ stage listo (v${pkg.version}${commit ? ` · ${commit}` : ''})`);

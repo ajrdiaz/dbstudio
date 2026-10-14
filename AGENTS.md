@@ -28,6 +28,13 @@ bash run.sh          # API (puerto libre desde 4000) + UI Vite (desde 5180); Ctr
 - Compilar para verificar: `cd client && npx vite build` (o esbuild sobre
   `src/main.jsx` para un chequeo rápido). `node --check server/*.js` para el API.
 
+## Al agregar o cambiar una funcionalidad
+
+Seguir la skill **`.claude/skills/nueva-funcionalidad/SKILL.md`**: el mismo código corre
+en web y en escritorio; la web se actualiza sola y el escritorio con `cd desktop && npm run release`
+(check de compatibilidad, versión, instalador, prueba del app empaquetado, acceso directo y commit).
+El app instalado detecta la versión nueva y ofrece actualizarse.
+
 ## Arquitectura
 
 ### Server (`server/`)
@@ -67,6 +74,9 @@ bash run.sh          # API (puerto libre desde 4000) + UI Vite (desde 5180); Ctr
 - `npm run dist` → `desktop/release/DBStudio-Setup-<versión>.exe` (NSIS, sin firma de código); luego `shortcut.mjs` crea
   `Instalador DBStudio.lnk` en la raíz apuntando al instalador más reciente (`*.lnk` en .gitignore).
 - Electron no implementa `window.prompt`: usar `askText()` de `lib/dialogs.jsx`.
+- `npm run check` (`check.mjs`): compatibilidad web/escritorio + i18n. `npm run release` (`release.mjs`): publica una versión.
+- `--smoke-test`: el app empaquetado arranca sin ventana, verifica UI/API/monitor/dependencias y sale (lo usa `release`).
+- Actualizaciones: `build-info.json` guarda la carpeta `desktop/release`; el app busca ahí un `DBStudio-Setup-X.Y.Z.exe` más nuevo y ofrece instalarlo.
 
 ### Datos del usuario
 En la carpeta de datos (por defecto `~/.dbstudio`, hoy en OneDrive):
@@ -122,8 +132,6 @@ En la carpeta de datos (por defecto `~/.dbstudio`, hoy en OneDrive):
 
 - Hecho: alertas + app de escritorio (instalador sin firmar: Windows SmartScreen
   muestra "Editor desconocido" la primera vez).
-- Idea evaluada: migrar el backend a Go + Wails reduciría instalador (~15 MB) y RAM; no
-  mejora la velocidad de consultas. Pospuesto hasta que el usuario lo pida.
 - Limitaciones conocidas: comparar esquemas no detecta renombres; copiar BD
   solo copia tablas; resultados editables solo de una tabla con PK; en
   conexiones de solo lectura los `CALL` quedan bloqueados.
