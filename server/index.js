@@ -195,6 +195,11 @@ app.post('/api/connections/:id/databases/:db/tables/:table/rows', h(async (req, 
   const { db, table } = req.params;
   const fq = `${quoteId(db)}.${quoteId(table)}`;
   const { inserts = [], updates = [], deletes = [], preview = false, session } = req.body || {};
+  // A NULL key means the row isn't in the table (e.g. the empty side of a
+  // LEFT JOIN); the UPDATE would silently match nothing.
+  if ([...updates, ...deletes].some((x) => Object.values(x.pk || {}).some((v) => v === null))) {
+    throw new Error('Una de las filas no existe en la tabla (su clave primaria está vacía, p. ej. por un LEFT JOIN). Quita ese cambio.');
+  }
   const statements = [];
   for (const d of deletes) {
     const whereClause = buildPkWhere(d.pk);
@@ -322,8 +327,10 @@ app.post('/api/connections/:id/query', h(async (req, res) => {
 async function editInfo(conn, fields, cache) {
   const src = (fields || []).filter((f) => f.orgTable);
   if (!src.length) return null;
-  const { schema, orgTable } = src[0];
-  if (!schema || src.some((f) => f.schema !== schema || f.orgTable !== orgTable)) {
+  const { schema, orgTable, table } = src[0];
+  // Same alias too: in a self-join (emp e JOIN emp b) b.name must not be saved
+  // into e's row.
+  if (!schema || src.some((f) => f.schema !== schema || f.orgTable !== orgTable || f.table !== table)) {
     return { editable: false, reason: 'multi' };
   }
   const key = `${schema}.${orgTable}`;
