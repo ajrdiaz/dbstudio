@@ -77,6 +77,12 @@ El app instalado detecta la versión nueva y ofrece actualizarse.
 - `npm run check` (`check.mjs`): compatibilidad web/escritorio + i18n. `npm run release` (`release.mjs`): publica una versión.
 - `--smoke-test`: el app empaquetado arranca sin ventana, verifica UI/API/monitor/dependencias y sale (lo usa `release`).
 - Actualizaciones: `build-info.json` guarda la carpeta `desktop/release`; el app busca ahí un `DBStudio-Setup-X.Y.Z.exe` más nuevo y ofrece instalarlo.
+  Al aceptar: ícono de bandeja verde → el app se cierra (si hay transacción abierta pregunta y se puede cancelar)
+  → en `will-quit` lanza un script PowerShell (`UPDATER_PS1` en `main.mjs`) que muestra una ventanita
+  "Actualizando…" con ícono verde, espera el cierre, corre el instalador con `/S` y reabre el app
+  (`--hidden` si estaba en la bandeja). La versión nueva notifica "actualizado" o "no se pudo" (`settings.updateFrom`).
+  El script se lanza con `cmd /c start` + parámetros en variables de entorno: Node mata a los hijos no `detached`
+  al salir, y PowerShell `detached` (sin consola) termina sin ejecutar nada.
 
 ### Datos del usuario
 En la carpeta de datos (por defecto `~/.dbstudio`, hoy en OneDrive):
@@ -125,6 +131,12 @@ En la carpeta de datos (por defecto `~/.dbstudio`, hoy en OneDrive):
   `--hidden --remote-debugging-port=9333` y conectarse por CDP. **No** cambiar `USERPROFILE`
   (Electron no arranca bien). Probar también el **empaquetado** (`release/win-unpacked/DBStudio.exe`),
   no solo `electron stage`.
+- Probar la **actualización** sin tocar la instalación real: generar instaladores con otra identidad
+  (`electron-builder -c.appId=pe.dbstudio.updtest -c.productName=DBStudioTest -c.nsis.shortcutName=DBStudioTest
+  -c.nsis.createDesktopShortcut=false -c.nsis.createStartMenuShortcut=false`, con `productName`/versión/`releaseDir`
+  cambiados en `stage/package.json` y `stage/build-info.json`), instalar con `/S /D=<scratch>`, y abrir con
+  `DBSTUDIO_UPDATE_TEST=1` (actualiza sin diálogo) + `DBSTUDIO_DATA_DIR` + `DBSTUDIO_LOG`. Lanzar el app y el
+  desinstalador por WMI (`Invoke-CimMethod Win32_Process Create`): desde la terminal del agente sus procesos hijos mueren.
 - Probar en navegador los flujos tocados (tema claro y oscuro) y apagar al
   final los servidores de prueba.
 

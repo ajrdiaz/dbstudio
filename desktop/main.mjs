@@ -6,6 +6,7 @@ import { app, BrowserWindow, Tray, Menu, Notification, nativeImage, shell, dialo
 import path from 'node:path';
 import fs from 'node:fs';
 import net from 'node:net';
+import { spawn } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -108,7 +109,7 @@ function createWindow() {
       detail: 'Si sales ahora se revertirá (ROLLBACK). Vuelve a la pestaña y haz Commit para guardarla.',
     });
     if (choice === 0) e.preventDefault();
-    else quitting = false;
+    else { quitting = false; cancelUpdate(); }
   });
 
   const remember = () => {
@@ -153,6 +154,7 @@ const cmpVer = (a, b) => {
 };
 let pendingUpdate = null; // { version, file }
 let notifiedVersion = null;
+let updating = null; // the update being installed (tray turns green)
 
 function findUpdate() {
   const dir = buildInfo?.releaseDir;
@@ -165,18 +167,134 @@ function findUpdate() {
   return best;
 }
 function offerUpdate(u) {
+  if (updating) return;
   const choice = dialog.showMessageBoxSync({
-    type: 'info', buttons: ['Instalar ahora', 'Más tarde'], defaultId: 0, cancelId: 1, title: 'DBStudio',
+    type: 'info', buttons: ['Actualizar ahora', 'Más tarde'], defaultId: 0, cancelId: 1, title: 'DBStudio',
     message: `Hay una nueva versión de DBStudio: ${u.version} (tienes ${app.getVersion()}).`,
-    detail: 'DBStudio se cerrará y se abrirá el instalador. Tus conexiones, consultas y alertas se conservan.',
+    detail: 'Se instala sola en unos segundos y DBStudio se vuelve a abrir con tus pestañas. '
+      + 'Mientras tanto el ícono de la bandeja se pone verde. Tus conexiones, consultas y alertas se conservan.',
   });
   if (choice !== 0) return;
-  log('installing update', u.version);
-  shell.openPath(u.file);
+  startUpdate(u);
+}
+function startUpdate(u) {
+  log('updating to', u.version);
+  updating = { ...u, hidden: !win || !win.isVisible() };
+  updateTray();
   quitting = true;
-  setTimeout(() => app.quit(), 800);
+  // The installer starts in 'will-quit', i.e. only if nothing cancels the quit
+  // (an open transaction asks first).
+  app.quit();
+}
+function cancelUpdate() {
+  if (!updating) return;
+  log('update cancelled');
+  updating = null;
+  updateTray();
+}
+
+// The app's files can't be replaced while it runs, so a small hidden
+// PowerShell helper takes over: it keeps a green "updating" icon in the tray,
+// waits for this process to exit, runs the installer silently and reopens
+// DBStudio (with --hidden if the window was in the tray).
+const UPDATER_PS1 = `
+$AppPid = [int]$env:DBS_UPD_PID; $Installer = $env:DBS_UPD_INSTALLER; $Exe = $env:DBS_UPD_EXE
+$Icon = $env:DBS_UPD_ICON; $Version = $env:DBS_UPD_VERSION; $Log = $env:DBS_UPD_LOG; $Hidden = $env:DBS_UPD_HIDDEN
+function W($m) { try { Add-Content -LiteralPath $Log -Value ((Get-Date).ToString('o') + ' updater ' + $m) } catch {} }
+W "started (waiting for $AppPid)"
+Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+[System.Windows.Forms.Application]::EnableVisualStyles()
+$ni = New-Object System.Windows.Forms.NotifyIcon
+try { $ni.Icon = [System.Drawing.Icon]::FromHandle(([System.Drawing.Bitmap]::FromFile($Icon)).GetHicon()) } catch {}
+$ni.Text = "DBStudio: actualizando a $Version..."
+$ni.Visible = $true
+# Small window bottom-right (+ green taskbar button): tray icons of new
+# programs are often hidden in Windows 11's overflow menu.
+$form = $null
+try {
+  $form = New-Object System.Windows.Forms.Form
+  $form.Text = 'DBStudio'; $form.FormBorderStyle = 'None'; $form.TopMost = $true; $form.ShowInTaskbar = $true
+  $form.StartPosition = 'Manual'; $form.Size = New-Object System.Drawing.Size(360, 96)
+  $wa = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+  $form.Location = New-Object System.Drawing.Point(($wa.Right - 376), ($wa.Bottom - 112))
+  $form.BackColor = [System.Drawing.Color]::FromArgb(24, 28, 36)
+  try { $form.Icon = [System.Drawing.Icon]::FromHandle(([System.Drawing.Bitmap]::FromFile($env:DBS_UPD_BIGICON)).GetHicon()) } catch {}
+  $pic = New-Object System.Windows.Forms.PictureBox
+  $pic.Image = [System.Drawing.Image]::FromFile($env:DBS_UPD_BIGICON); $pic.SizeMode = 'Zoom'
+  $pic.Location = New-Object System.Drawing.Point(16, 22); $pic.Size = New-Object System.Drawing.Size(44, 44)
+  $title = New-Object System.Windows.Forms.Label
+  $title.Text = "Actualizando DBStudio a $Version..."; $title.ForeColor = [System.Drawing.Color]::White
+  $title.Font = New-Object System.Drawing.Font('Segoe UI', 10, [System.Drawing.FontStyle]::Bold)
+  $title.Location = New-Object System.Drawing.Point(72, 16); $title.AutoSize = $true
+  $sub = New-Object System.Windows.Forms.Label
+  $sub.Text = 'Se volverá a abrir solo con tus pestañas.'; $sub.ForeColor = [System.Drawing.Color]::FromArgb(170, 178, 192)
+  $sub.Font = New-Object System.Drawing.Font('Segoe UI', 9); $sub.Location = New-Object System.Drawing.Point(72, 40); $sub.AutoSize = $true
+  $bar = New-Object System.Windows.Forms.ProgressBar
+  $bar.Style = 'Marquee'; $bar.MarqueeAnimationSpeed = 30
+  $bar.Location = New-Object System.Drawing.Point(72, 66); $bar.Size = New-Object System.Drawing.Size(270, 8)
+  $form.Controls.AddRange(@($pic, $title, $sub, $bar))
+  $form.Show()
+} catch { W ("window " + $_) }
+$pump = { param($ms) $end = (Get-Date).AddMilliseconds($ms); while ((Get-Date) -lt $end) { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 100 } }
+try {
+  $app = Get-Process -Id $AppPid -ErrorAction SilentlyContinue
+  $t = 0
+  while ($app -and -not $app.HasExited -and $t -lt 600) { & $pump 100; $t++ }
+  & $pump 500
+  W "installing $Version"
+  $p = Start-Process -FilePath $Installer -ArgumentList '/S' -PassThru
+  while (-not $p.HasExited) { & $pump 200 }
+  W ("installer exit " + $p.ExitCode)
+} catch { W ("error " + $_) }
+finally { $ni.Visible = $false; $ni.Dispose(); if ($form) { $form.Close() } }
+if (Test-Path -LiteralPath $Exe) {
+  if ($Hidden -eq '1') { Start-Process -FilePath $Exe -ArgumentList '--hidden' } else { Start-Process -FilePath $Exe }
+} else { W "missing $Exe" }
+`;
+function launchUpdater(u) {
+  const dir = fs.mkdtempSync(path.join(app.getPath('temp'), 'dbstudio-update-'));
+  const script = path.join(dir, 'update.ps1');
+  // Icons go outside app.asar: PowerShell can't read inside it.
+  const icon = path.join(dir, 'tray-update.png');
+  const bigIcon = path.join(dir, 'icon-update.png');
+  fs.writeFileSync(script, '\ufeff' + UPDATER_PS1); // BOM: PowerShell 5 reads the accents as UTF-8
+  fs.copyFileSync(asset('tray-update-32.png'), icon);
+  fs.copyFileSync(asset('icon-update-256.png'), bigIcon);
+  settings.updateFrom = app.getVersion();
+  saveSettings();
+  // Started through `cmd /c start` so it is fully independent of this process:
+  // Node kills non-detached children when the app exits, and a detached
+  // PowerShell (no console) exits without running the script. Parameters go
+  // in the environment so paths never need quoting.
+  const child = spawn('cmd.exe', ['/d', '/s', '/c',
+    `start "" /min powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "${script}"`], {
+    detached: true, stdio: 'ignore', windowsHide: true, windowsVerbatimArguments: true,
+    env: {
+      ...process.env,
+      DBS_UPD_PID: String(process.pid), DBS_UPD_INSTALLER: u.file, DBS_UPD_EXE: process.execPath,
+      DBS_UPD_ICON: icon, DBS_UPD_BIGICON: bigIcon, DBS_UPD_VERSION: u.version, DBS_UPD_LOG: logFile(), DBS_UPD_HIDDEN: u.hidden ? '1' : '0',
+    },
+  });
+  child.unref();
+  log('updater started', u.version);
+}
+// After an update the new version says so (or that the installer failed).
+function reportUpdate() {
+  const from = settings.updateFrom;
+  if (!from) return;
+  delete settings.updateFrom;
+  saveSettings();
+  const ok = cmpVer(app.getVersion(), from) > 0;
+  log(ok ? 'updated' : 'update failed', from, '->', app.getVersion());
+  new Notification({
+    title: ok ? `DBStudio actualizado a ${app.getVersion()}` : 'No se pudo actualizar DBStudio',
+    body: ok ? 'Tus pestañas, conexiones y alertas siguen como las dejaste.'
+      : `Sigues con la versión ${app.getVersion()}. Prueba de nuevo desde la bandeja → Buscar actualizaciones.`,
+    icon: asset('icon-256.png'),
+  }).show();
 }
 function checkUpdate(manual = false) {
+  if (updating) return;
   const u = findUpdate();
   pendingUpdate = u;
   updateTray();
@@ -185,6 +303,8 @@ function checkUpdate(manual = false) {
     return;
   }
   if (manual) { offerUpdate(u); return; }
+  // End-to-end test of the update flow (no dialog to click).
+  if (process.env.DBSTUDIO_UPDATE_TEST === '1') { startUpdate(u); return; }
   if (notifiedVersion === u.version) return;
   notifiedVersion = u.version;
   const n = new Notification({ title: `DBStudio ${u.version} disponible`, body: 'Clic para instalar la nueva versión.', icon: asset('icon-256.png') });
@@ -199,6 +319,11 @@ function activeAlerts() {
 function updateTray() {
   if (!tray) return;
   const n = activeAlerts();
+  if (updating) {
+    tray.setImage(nativeImage.createFromPath(asset('tray-update-32.png')));
+    tray.setToolTip(`DBStudio — actualizando a ${updating.version}…`);
+    return;
+  }
   tray.setImage(nativeImage.createFromPath(asset(n ? 'tray-alert-32.png' : 'tray-32.png')));
   tray.setToolTip(n ? `DBStudio — ${n} alerta(s) activa(s)` : 'DBStudio — sin alertas');
   const login = app.getLoginItemSettings();
@@ -244,6 +369,7 @@ function onAlert(ev) {
 // ---- lifecycle ----
 app.on('second-instance', showWindow);
 app.on('before-quit', () => { quitting = true; });
+app.on('will-quit', () => { if (updating) launchUpdater(updating); });
 app.on('window-all-closed', () => { if (!settings.keepInTray) app.quit(); });
 
 app.whenReady().then(async () => {
@@ -263,6 +389,7 @@ app.whenReady().then(async () => {
   updateTray();
   setInterval(updateTray, 30000).unref();
   createWindow();
+  reportUpdate();
   setTimeout(() => checkUpdate(), 15000);
   setInterval(() => checkUpdate(), 30 * 60 * 1000).unref();
 });
