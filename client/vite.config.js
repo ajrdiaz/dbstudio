@@ -11,7 +11,8 @@ export default defineConfig({
     port: CLIENT_PORT,
     strictPort: true, // fail instead of silently shifting; run.sh already picked a free port
     proxy: {
-      '/api': `http://localhost:${API_PORT}`,
+      // 127.0.0.1, not localhost: the API listens on IPv4 loopback only.
+      '/api': `http://127.0.0.1:${API_PORT}`,
     },
   },
 });

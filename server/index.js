@@ -1,5 +1,6 @@
 import express from 'express';
-import cors from 'cors';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
   listConnections, getConnectionRaw, createConnection,
   updateConnection, deleteConnection, encrypt, decrypt, mergeForTest,
@@ -24,10 +25,25 @@ import { assertWritable } from './sqlKind.js';
 import { registerSessions, getSession, refreshTxState, publicState, closeSessionsFor } from './sessions.js';
 
 const app = express();
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
 
-const PORT = process.env.PORT || 4000;
+// Local-only API: refuse requests that don't come from DBStudio's own UI.
+// - Host must be the loopback name (blocks DNS-rebinding from web pages).
+// - A browser Origin, when sent, must be a loopback origin too (blocks any
+//   website you visit from calling this API with your saved connections).
+// Set DBSTUDIO_ALLOW_REMOTE=1 only behind your own authentication.
+const LOOPBACK = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
+app.use((req, res, next) => {
+  if (process.env.DBSTUDIO_ALLOW_REMOTE === '1') return next();
+  const host = String(req.headers.host || '');
+  const origin = req.headers.origin;
+  let originOk = true;
+  if (origin && origin !== 'null') {
+    try { originOk = LOOPBACK.test(new URL(origin).host); } catch { originOk = false; }
+  } else if (origin === 'null') originOk = false;
+  if (!LOOPBACK.test(host) || !originOk) return res.status(403).json({ error: 'Origen no permitido' });
+  next();
+});
+app.use(express.json({ limit: '50mb' }));
 
 // Wrap async handlers so thrown errors become clean JSON responses.
 const h = (fn) => (req, res) => fn(req, res).catch((err) => {
@@ -509,6 +525,25 @@ registerObjects(app, { h, getPool });
 registerDbInfo(app, { h, getPool });
 registerTools(app, { h, getPool, getConnectionRaw });
 
-app.listen(PORT, () => {
-  console.log(`DBStudio API listening on http://localhost:${PORT}`);
-});
+// Start the API (used by `node index.js` and by the desktop app).
+// Listens on the loopback interface only, unless HOST says otherwise.
+// staticDir: also serve the built UI (desktop app / production).
+export function start({
+  port = Number(process.env.PORT) || 4000,
+  host = process.env.HOST || '127.0.0.1',
+  staticDir = process.env.STATIC_DIR,
+} = {}) {
+  if (staticDir) {
+    app.use(express.static(staticDir));
+    app.get(/^(?!\/api\/).*/, (_req, res) => res.sendFile(path.join(staticDir, 'index.html')));
+  }
+  return new Promise((resolve, reject) => {
+    const server = app.listen(port, host, () => resolve({ server, port: server.address().port, host }));
+    server.on('error', reject);
+  });
+}
+
+const isMain = process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+if (isMain) {
+  start().then(({ port, host }) => console.log(`DBStudio API listening on http://${host}:${port}`));
+}
