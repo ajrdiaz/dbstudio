@@ -1,7 +1,7 @@
 {
   "name": "dbstudio-desktop",
   "productName": "DBStudio",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "private": true,
   "description": "DBStudio — cliente MySQL/MariaDB de escritorio",
   "author": "Aj",
