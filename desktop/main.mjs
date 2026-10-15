@@ -93,6 +93,15 @@ function createWindow() {
     webPreferences: { preload: path.join(here, 'preload.cjs'), contextIsolation: true, sandbox: true },
   });
   if (b.maximized) win.maximize();
+  // Tell the taskbar which icon to show for this window. Otherwise it resolves
+  // the AppUserModelID through the Start menu shortcut, and after an update
+  // (shortcut recreated) Explorer could keep showing a generic icon.
+  if (process.platform === 'win32' && app.isPackaged) {
+    win.setAppDetails({
+      appId: 'pe.dbstudio.app', appIconPath: process.execPath, appIconIndex: 0,
+      relaunchCommand: `"${process.execPath}"`, relaunchDisplayName: 'DBStudio',
+    });
+  }
   win.loadURL(`http://127.0.0.1:${port}/`);
   win.once('ready-to-show', () => { if (!startHidden) win.show(); });
 
