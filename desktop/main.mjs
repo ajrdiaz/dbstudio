@@ -2,7 +2,7 @@
 // Runs the same API in-process on the loopback interface, shows the UI in a
 // window, stays in the system tray to keep watching alert rules, and turns
 // monitor events into native Windows notifications.
-import { app, BrowserWindow, Tray, Menu, Notification, nativeImage, shell, dialog } from 'electron';
+import { app, BrowserWindow, Tray, Menu, Notification, nativeImage, shell, dialog, nativeTheme, ipcMain } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import net from 'node:net';
@@ -87,14 +87,26 @@ async function startServer() {
 }
 
 // ---- window ----
+// The native title bar follows the UI theme (light/dark), remembered so the
+// window opens with the right one before the page loads.
+const BG = { light: '#f4f5f7', dark: '#12151b' };
+function applyTheme(theme) {
+  const t = theme === 'dark' ? 'dark' : 'light';
+  nativeTheme.themeSource = t;
+  win?.setBackgroundColor(BG[t]);
+  if (settings.theme !== t) { settings.theme = t; saveSettings(); }
+}
+ipcMain.on('theme', (_e, theme) => applyTheme(theme));
+
 function createWindow() {
+  applyTheme(settings.theme);
   const b = settings.bounds || {};
   win = new BrowserWindow({
     width: b.width || 1440, height: b.height || 900, x: b.x, y: b.y,
     minWidth: 900, minHeight: 560,
     title: 'DBStudio',
     icon: asset('icon-256.png'),
-    backgroundColor: '#12151b',
+    backgroundColor: BG[settings.theme] || BG.light,
     autoHideMenuBar: true,
     show: false,
     webPreferences: { preload: path.join(here, 'preload.cjs'), contextIsolation: true, sandbox: true },

@@ -73,6 +73,7 @@ export default function App() {
   // Apply + persist the theme.
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    window.dbstudioDesktop?.setTheme?.(theme); // desktop: native title bar follows
     try { localStorage.setItem('dbstudio-theme', theme); } catch { /* ignore */ }
   }, [theme]);
 
