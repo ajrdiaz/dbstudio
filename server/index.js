@@ -53,8 +53,9 @@ const h = (fn) => (req, res) => fn(req, res).catch((err) => {
 
 // Read-only connections: refuse every modifying request for that connection
 // (designer, row saves, import, drops, admin actions, ...). Reads, exports and
-// SQL previews stay allowed; /query checks each statement itself.
-const READONLY_SAFE = [/^\/query$/, /\/export(-rows)?$/, /^\/admin\/users\/grants$/];
+// SQL previews stay allowed; /query checks each statement itself. Opening an
+// editor session (/sessions) only connects: its writes still go through /query.
+const READONLY_SAFE = [/^\/query$/, /^\/sessions$/, /\/export(-rows)?$/, /^\/admin\/users\/grants$/];
 app.use('/api/connections/:id', (req, res, next) => {
   if (req.method === 'GET' || req.params.id === 'test' || req.path === '/' || req.body?.preview) return next();
   if (/\/maintenance$/.test(req.path) && req.body?.op === 'check') return next();
