@@ -49,23 +49,13 @@ export function EnvBadge({ conn, small }) {
   );
 }
 
-// Stripe above a tab's content; a labelled warning bar for staging/production.
+// Thin stripe in the environment's color above a tab's content (the tab
+// itself already shows the PROD/RO badges).
 export function EnvBanner({ connId }) {
-  const { t } = useI18n();
   const conn = getConn(connId);
   const color = envColor(conn);
   if (!color && !conn?.readOnly) return null;
-  const loud = conn.env === 'production' || conn.env === 'staging' || conn.readOnly;
-  if (!loud) return <div className="env-stripe" style={{ background: color }} />;
-  return (
-    <div className={'env-banner' + (color ? '' : ' ro')} style={color ? { background: color, color: textOn(conn.color) } : undefined}>
-      {conn.env === 'production' ? '⚠ ' : ''}{conn.env ? t('env.' + conn.env).toUpperCase() : ''}
-      <span className="env-banner-name">{conn.name}</span>
-      <span className="env-banner-hint">
-        {conn.readOnly ? t('env.bannerReadOnly') : conn.confirmWrites ? t('env.bannerConfirm') : ''}
-      </span>
-    </div>
-  );
+  return <div className={'env-stripe' + (color ? '' : ' ro')} style={color ? { background: color } : undefined} />;
 }
 
 // ---- write guard ----
