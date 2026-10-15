@@ -15,6 +15,17 @@ import { NULL_TEXT, toTSV, parseTSV, toCSV, quoteId, quoteVal, isBlob } from '..
 // underlying index (0..n-1 existing, n.. new).
 
 const EMPTY = { edits: {}, newRows: [], deleted: [] };
+// Column widths fit the content like SQLyog: header and the first rows,
+// capped so one long text doesn't push the other columns away.
+const FIT_ROWS = 200;
+const FIT_MAX = 320; // automatic width
+const FIT_MAX_MANUAL = 600; // double-click on the header border
+let measureCtx = null;
+function textWidth(text, font) {
+  if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
+  measureCtx.font = font;
+  return measureCtx.measureText(text).width;
+}
 const OVERSCAN = 12;
 let newRowSeq = 1;
 
@@ -114,9 +125,14 @@ export default function EditableGrid({
 
   // New data → drop pending changes and selection.
   useEffect(() => { resetChanges(); setSel(null); setEditing(null); setLocalSort(null); }, [rows, resetChanges]);
+  // Fit when the columns change, and again when the first rows arrive.
+  const fitFor = useRef({ columns: null, hadRows: false });
   useEffect(() => {
-    setWidths(columns.map((c) => Math.min(320, Math.max(64, String(c.name).length * 8 + 34))));
-  }, [columns]);
+    const f = fitFor.current;
+    if (f.columns === columns && (f.hadRows || !rows.length)) return;
+    fitFor.current = { columns, hadRows: rows.length > 0 };
+    setWidths(columns.map((_, c) => fitWidth(c, Math.min(rows.length, FIT_ROWS), FIT_MAX, (r) => rows[r][c])));
+  }, [columns, rows]);
 
   const changeCount = useMemo(
     () => Object.values(st.edits).reduce((a, e) => a + Object.keys(e).length, 0) + st.newRows.length + st.deleted.length,
@@ -157,6 +173,18 @@ export default function EditableGrid({
   }, [st, rows, n]);
 
   const metaOf = (c) => columns[c]?.meta || null;
+  // Width (px) that shows column c's header and `count` values from valueAt(i).
+  function fitWidth(c, count, cap, valueAt) {
+    const base = scrollRef.current ? getComputedStyle(scrollRef.current) : null;
+    const family = base?.fontFamily || 'Segoe UI, system-ui, sans-serif';
+    const size = base?.fontSize || '13px';
+    const font = `${size} ${family}`;
+    const meta = metaOf(c);
+    // Header: bold name + PK badge + sort arrow + padding.
+    let w = textWidth(String(columns[c].name), `600 ${font}`) + 34 + (primaryKey.includes(tg[c]) ? 26 : 0);
+    for (let i = 0; i < count && w < cap; i++) w = Math.max(w, textWidth(displayOf(valueAt(i), meta), font) + 16);
+    return Math.round(Math.min(cap, Math.max(48, w)));
+  }
   const colEditable = (c) => editable && tg[c] != null && !metaOf(c)?.generated;
   const cellEditable = (vi, c) => {
     const r = R(vi);
@@ -553,9 +581,8 @@ export default function EditableGrid({
   }
   function autoFit(e, c) {
     e.stopPropagation();
-    let max = String(columns[c].name).length;
-    for (let vi = start; vi < end; vi++) max = Math.max(max, displayOf(getVal(R(vi), c), metaOf(c)).length);
-    setWidths((w) => { const nw = w.slice(); nw[c] = Math.min(600, Math.max(48, max * 7.4 + 26)); return nw; });
+    const w = fitWidth(c, end - start, FIT_MAX_MANUAL, (i) => getVal(R(start + i), c));
+    setWidths((ws) => { const nw = ws.slice(); nw[c] = w; return nw; });
   }
 
   // ---- render ----
