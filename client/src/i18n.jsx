@@ -619,6 +619,8 @@ const DICT = {
     'query.nameThis': 'Nombra esta consulta:',
     'query.saved': 'Consulta guardada',
     'query.updated': 'Consulta actualizada',
+    'query.confirmCloseModified': 'La consulta guardada «{name}» tiene cambios sin guardar. ¿Cerrar y descartarlos?',
+    'tabs.modified': 'Cambios sin guardar: Ctrl+S para guardarlos',
 
     'data.refresh': '⟳ Actualizar',
     'data.filter': 'Filtro WHERE, p. ej.  id > 100 AND name LIKE \'%a%\'',
@@ -1318,6 +1320,8 @@ const DICT = {
     'query.nameThis': 'Name this query:',
     'query.saved': 'Query saved',
     'query.updated': 'Query updated',
+    'query.confirmCloseModified': 'The saved query «{name}» has unsaved changes. Close and discard them?',
+    'tabs.modified': 'Unsaved changes: Ctrl+S to save',
 
     'data.refresh': '⟳ Refresh',
     'data.filter': 'WHERE filter, e.g.  id > 100 AND name LIKE \'%a%\'',

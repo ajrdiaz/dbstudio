@@ -25,6 +25,7 @@ const nextId = () => 't' + tabSeq++;
 
 export default function App() {
   const { t, lang, setLang } = useI18n();
+  const tr = t; // `t` is shadowed by the tab inside tabs.map
   const [connections, setConnections] = useState([]);
   // Active connection = the one shown as "Connected: …". Kept as an id (the
   // object is looked up so renames/deletes are reflected) and remembered across
@@ -167,6 +168,8 @@ export default function App() {
   function closeTab(id) {
     // Closing the tab closes its session: an open transaction would roll back.
     if (tabHasOpenTx(id) && !window.confirm(t('tx.confirmCloseTab'))) return;
+    const tab = tabs.find((x) => x.id === id);
+    if (tab?.modified && !window.confirm(t('query.confirmCloseModified', { name: tab.title }))) return;
     setTabs((t) => {
       const next = t.filter((x) => x.id !== id);
       if (activeTab === id) setActiveTab(next.length ? next[next.length - 1].id : null);
@@ -243,7 +246,13 @@ export default function App() {
     const connId = q.connectionId && connections.some((c) => c.id === q.connectionId)
       ? q.connectionId : (active?.id || connections[0]?.id);
     if (!connId) { notify(t('conn.addFirst'), 'err'); return; }
-    openTab({ kind: 'query', title: q.name, connId, database: q.database || '', sql: q.sql, savedQueryId: q.id });
+    // Already open: go to that tab (it may have newer, unsaved edits).
+    const open = tabs.find((x) => x.kind === 'query' && x.savedQueryId === q.id);
+    if (open) { setActiveTab(open.id); return; }
+    openTab({
+      kind: 'query', title: q.name, connId, database: q.database || '', sql: q.sql,
+      savedQueryId: q.id, savedBase: { sql: q.sql, database: q.database || '' },
+    });
   }
 
   function openHistory(e) {
@@ -325,7 +334,8 @@ export default function App() {
                 style={envColor(getConn(t.connId)) ? { boxShadow: `inset 0 3px 0 ${envColor(getConn(t.connId))}` } : undefined}
               >
                 {getConn(t.connId)?.env === 'production' && <EnvBadge conn={getConn(t.connId)} small />}
-                <span>{t.title}</span>
+                <span className={t.modified ? 'tab-title-mod' : undefined}>{t.title}</span>
+                {t.modified && <span className="tab-modified" title={tr('tabs.modified')}>●</span>}
                 <button className="close" onClick={(e) => { e.stopPropagation(); closeTab(t.id); }}>✕</button>
               </div>
             ))}
@@ -354,6 +364,7 @@ export default function App() {
                     database={t.database}
                     initialSql={t.sql}
                     savedQueryId={t.savedQueryId}
+                    savedBase={t.savedBase}
                     autocommitPref={t.autocommit}
                     rowLimitPref={t.rowLimit}
                     theme={theme}

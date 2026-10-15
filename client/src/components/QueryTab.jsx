@@ -16,7 +16,7 @@ import { useI18n } from '../i18n.jsx';
 // Ctrl+Shift+Enter (or F5 / Ctrl+F9) runs the whole script.
 // Reports sql/database changes up (onStateChange) so the workspace can persist
 // them, and can save the current SQL as a named favorite.
-export default function QueryTab({ tabId, connId, database, initialSql, savedQueryId, autocommitPref, rowLimitPref, theme, onStateChange, onSaved, toast }) {
+export default function QueryTab({ tabId, connId, database, initialSql, savedQueryId, savedBase, autocommitPref, rowLimitPref, theme, onStateChange, onSaved, toast }) {
   const { t } = useI18n();
   const [sql, setSql] = useState(initialSql || '');
   const [db, setDb] = useState(database || '');
@@ -36,6 +36,10 @@ export default function QueryTab({ tabId, connId, database, initialSql, savedQue
   const [cancelling, setCancelling] = useState(false);
   const dirtyRef = useRef({}); // result index -> has unsaved grid edits
   const [linkedQuery, setLinkedQuery] = useState(savedQueryId || null);
+  // What the linked saved query holds ({ sql, database }), to tell whether the
+  // tab has unsaved changes (shown as ● on the tab, saved with Ctrl+S).
+  const [base, setBase] = useState(savedBase || null);
+  const modified = !!linkedQuery && !!base && (sql !== base.sql || db !== (base.database || ''));
   const editorRef = useRef(null);
   const schemaRef = useRef({ tables: {} }); // this tab's schema for autocomplete
   // Editor keybindings are registered once on mount, so they call through this
@@ -64,9 +68,23 @@ export default function QueryTab({ tabId, connId, database, initialSql, savedQue
   // Push state up (debounced) for workspace persistence.
   useEffect(() => {
     if (!onStateChange) return;
-    const t = setTimeout(() => onStateChange(tabId, { sql, database: db, savedQueryId: linkedQuery, autocommit, rowLimit }), 400);
+    const t = setTimeout(() => onStateChange(tabId, { sql, database: db, savedQueryId: linkedQuery, savedBase: base, autocommit, rowLimit }), 400);
     return () => clearTimeout(t);
-  }, [sql, db, linkedQuery, autocommit, rowLimit, tabId, onStateChange]);
+  }, [sql, db, linkedQuery, base, autocommit, rowLimit, tabId, onStateChange]);
+  // The ● on the tab updates right away.
+  useEffect(() => { onStateChange?.(tabId, { modified }); }, [modified, tabId, onStateChange]);
+  // Tabs restored from an older workspace don't carry the saved text: fetch it.
+  useEffect(() => {
+    if (!linkedQuery || base) return;
+    let alive = true;
+    api.listQueries()
+      .then((list) => {
+        const q = list.find((x) => x.id === linkedQuery);
+        if (alive && q) setBase({ sql: q.sql, database: q.database || '' });
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [linkedQuery, base]);
 
   // ---- editor session ----
   function applySession(st) {
@@ -310,12 +328,15 @@ export default function QueryTab({ tabId, connId, database, initialSql, savedQue
     try {
       if (linkedQuery) {
         await api.updateQuery(linkedQuery, { sql: text, database: db });
+        setBase({ sql: text, database: db });
         toast(t('query.updated'), 'ok');
       } else {
         const name = (await askText({ title: t('query.save'), label: t('query.nameThis') }))?.trim();
         if (!name) return;
         const q = await api.createQuery({ name, sql: text, database: db, connectionId: connId });
         setLinkedQuery(q.id);
+        setBase({ sql: text, database: db });
+        onStateChange?.(tabId, { title: name });
         toast(t('query.saved'), 'ok');
       }
       onSaved?.();
