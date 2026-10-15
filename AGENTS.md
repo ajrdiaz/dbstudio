@@ -137,6 +137,10 @@ En la carpeta de datos (por defecto `~/.dbstudio`, hoy en OneDrive):
   cambiados en `stage/package.json` y `stage/build-info.json`), instalar con `/S /D=<scratch>`, y abrir con
   `DBSTUDIO_UPDATE_TEST=1` (actualiza sin diálogo) + `DBSTUDIO_DATA_DIR` + `DBSTUDIO_LOG`. Lanzar el app y el
   desinstalador por WMI (`Invoke-CimMethod Win32_Process Create`): desde la terminal del agente sus procesos hijos mueren.
+- Electron crea un acceso directo en el menú Inicio (`%APPDATA%\Microsoft\Windows\Start Menu\Programs\<nombre>.lnk`)
+  con el AppUserModelID para poder notificar. Solo el DBStudio instalado usa `pe.dbstudio.app`; `electron stage` usa
+  `pe.dbstudio.dev` y las builds de prueba `pe.dbstudio.<nombre>`. Si comparten ID, la barra de tareas puede tomar el
+  ícono de un acceso directo roto (pasó con `DBStudioTest.lnk`). Al terminar una prueba, borrar esos `.lnk` sobrantes.
 - Probar en navegador los flujos tocados (tema claro y oscuro) y apagar al
   final los servidores de prueba.
 

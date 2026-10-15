@@ -36,7 +36,14 @@ process.on('unhandledRejection', (e) => log('unhandled', e));
 const SMOKE = process.argv.includes('--smoke-test');
 if (SMOKE) app.setPath('userData', path.join(app.getPath('temp'), `dbstudio-smoke-${process.pid}`));
 
-app.setAppUserModelId('pe.dbstudio.app'); // required for Windows notifications
+// AppUserModelID: Windows uses it for notifications and to pick the taskbar
+// icon (from a Start menu shortcut with the same ID; Electron creates one named
+// after the app if missing). Only the installed DBStudio uses the real ID, so
+// dev runs (`electron stage`) and test builds never add shortcuts that share
+// it: one pointing to a deleted test exe gave the taskbar a generic icon.
+const APP_ID = !app.isPackaged ? 'pe.dbstudio.dev'
+  : app.getName() === 'DBStudio' ? 'pe.dbstudio.app' : `pe.dbstudio.${app.getName().toLowerCase()}`;
+app.setAppUserModelId(APP_ID);
 if (!SMOKE && !app.requestSingleInstanceLock()) {
   log('another instance is running; exiting');
   app.quit();
@@ -93,12 +100,10 @@ function createWindow() {
     webPreferences: { preload: path.join(here, 'preload.cjs'), contextIsolation: true, sandbox: true },
   });
   if (b.maximized) win.maximize();
-  // Tell the taskbar which icon to show for this window. Otherwise it resolves
-  // the AppUserModelID through the Start menu shortcut, and after an update
-  // (shortcut recreated) Explorer could keep showing a generic icon.
+  // Taskbar icon / relaunch command for this window (also used when pinned).
   if (process.platform === 'win32' && app.isPackaged) {
     win.setAppDetails({
-      appId: 'pe.dbstudio.app', appIconPath: process.execPath, appIconIndex: 0,
+      appId: APP_ID, appIconPath: process.execPath, appIconIndex: 0,
       relaunchCommand: `"${process.execPath}"`, relaunchDisplayName: 'DBStudio',
     });
   }
@@ -254,8 +259,6 @@ try {
   $p = Start-Process -FilePath $Installer -ArgumentList '/S' -PassThru
   while (-not $p.HasExited) { & $pump 200 }
   W ("installer exit " + $p.ExitCode)
-  # The exe was missing for a moment: Windows may have cached a generic icon.
-  try { Start-Process ie4uinit.exe -ArgumentList '-show' -Wait -WindowStyle Hidden } catch {}
 } catch { W ("error " + $_) }
 finally { $ni.Visible = $false; $ni.Dispose(); if ($form) { $form.Close() } }
 if (Test-Path -LiteralPath $Exe) {
@@ -296,9 +299,6 @@ function reportUpdate() {
   delete settings.updateFrom;
   saveSettings();
   const ok = cmpVer(app.getVersion(), from) > 0;
-  // While the installer replaced the exe Windows may have cached a generic
-  // taskbar icon; ask it to refresh its icon cache.
-  try { spawn('ie4uinit.exe', ['-show'], { stdio: 'ignore', windowsHide: true }).on('error', () => {}); } catch { /* ignore */ }
   log(ok ? 'updated' : 'update failed', from, '->', app.getVersion());
   new Notification({
     title: ok ? `DBStudio actualizado a ${app.getVersion()}` : 'No se pudo actualizar DBStudio',
@@ -402,7 +402,7 @@ app.whenReady().then(async () => {
   tray.on('click', showWindow);
   updateTray();
   setInterval(updateTray, 30000).unref();
-  reportUpdate(); // before the window: refreshes the icon cache after an update
+  reportUpdate();
   createWindow();
   setTimeout(() => checkUpdate(), 15000);
   setInterval(() => checkUpdate(), 30 * 60 * 1000).unref();
