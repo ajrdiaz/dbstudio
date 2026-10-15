@@ -112,6 +112,9 @@ En la carpeta de datos (por defecto `~/.dbstudio`, hoy en OneDrive):
 7. **Polling**: usar `usePolling` (no `setInterval` suelto) para no consultar
    producción desde pestañas ocultas.
 8. Commits en español, con la línea de atribución de Claude.
+9. **Todo cambio se publica también para escritorio**, sin esperar a que el
+   usuario lo pida: al terminar y verificar, hacer commit y `cd desktop && npm run release`
+   (ver la skill `nueva-funcionalidad`). Un cambio solo en la web no está terminado.
 
 ## Cómo probar sin riesgo
 
