@@ -6,6 +6,7 @@ import ExplainView from './ExplainView.jsx';
 import { guardWrite, cancelledError } from '../lib/env.jsx';
 import { setTabSession } from '../lib/editorSessions.js';
 import { askText } from '../lib/dialogs.jsx';
+import { folderOptions, lastFolder, rememberFolder } from '../lib/savedFolders.js';
 import { format as formatSqlText } from 'sql-formatter';
 import { ensureProvider, setSchema } from '../lib/completion.js';
 import { splitStatements, statementAt } from '../lib/sqlSplit.js';
@@ -331,9 +332,15 @@ export default function QueryTab({ tabId, connId, database, initialSql, savedQue
         setBase({ sql: text, database: db });
         toast(t('query.updated'), 'ok');
       } else {
-        const name = (await askText({ title: t('query.save'), label: t('query.nameThis') }))?.trim();
+        const folders = await api.listQueryFolders().catch(() => []);
+        const r = await askText({
+          title: t('query.save'), label: t('query.nameThis'),
+          choice: { label: t('saved.folder'), value: lastFolder(folders), options: folderOptions(folders, t('saved.root')) },
+        });
+        const name = r?.text?.trim();
         if (!name) return;
-        const q = await api.createQuery({ name, sql: text, database: db, connectionId: connId });
+        rememberFolder(r.choice);
+        const q = await api.createQuery({ name, sql: text, database: db, connectionId: connId, folder: r.choice });
         setLinkedQuery(q.id);
         setBase({ sql: text, database: db });
         onStateChange?.(tabId, { title: name });

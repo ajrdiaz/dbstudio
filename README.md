@@ -75,7 +75,9 @@ backend y **React + Vite + Monaco** en el frontend.
   pestañas de datos/estructura) se auto-guardan y se restauran al recargar o
   reabrir. Persistencia local en el servidor (`~/.dbstudio/`), sin login.
 - **Consultas guardadas** (favoritos) — guarda SQL con nombre (`💾` / `Ctrl+S`),
-  reábrelas desde el panel **Saved**, renómbralas o bórralas.
+  reábrelas desde el panel **Guardadas**, renómbralas o bórralas. Organízalas en
+  **carpetas y subcarpetas** (arrastrar y soltar, clic derecho → *Mover a carpeta…*),
+  con buscador por nombre, SQL o carpeta. La pestaña marca con ● los cambios sin guardar.
 - **Historial de consultas** — cada ejecución (éxito o error) se registra
   automáticamente con hora, resumen y duración; reábrelas desde el panel **History**.
 - **Selector de BD** desplegable por pestaña, poblado desde la conexión.

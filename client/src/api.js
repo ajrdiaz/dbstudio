@@ -74,6 +74,10 @@ export const api = {
   createQuery: (body) => req('/queries', { method: 'POST', body }),
   updateQuery: (qid, body) => req(`/queries/${qid}`, { method: 'PUT', body }),
   deleteQuery: (qid) => req(`/queries/${qid}`, { method: 'DELETE' }),
+  listQueryFolders: () => req('/query-folders'),
+  createQueryFolder: (path) => req('/query-folders', { method: 'POST', body: { path } }),
+  renameQueryFolder: (from, to) => req('/query-folders/rename', { method: 'POST', body: { from, to } }),
+  deleteQueryFolder: (path) => req('/query-folders/delete', { method: 'POST', body: { path } }),
 
   // history
   history: (limit = 200) => req(`/history?limit=${limit}`),

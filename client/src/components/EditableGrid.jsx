@@ -830,7 +830,7 @@ function InlineEditor({ editing, meta, onChange, onCommit, onCancel, onBig }) {
   );
 }
 
-function ContextMenu({ x, y, items, onClose }) {
+export function ContextMenu({ x, y, items, onClose }) {
   useEffect(() => {
     const close = (e) => { if (!e.target.closest?.('.ctx-menu')) onClose(); };
     const t = setTimeout(() => window.addEventListener('mousedown', close), 0);

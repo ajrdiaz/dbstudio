@@ -86,7 +86,8 @@ El app instalado detecta la versión nueva y ofrece actualizarse.
 
 ### Datos del usuario
 En la carpeta de datos (por defecto `~/.dbstudio`, hoy en OneDrive):
-`connections.json`, `queries.json`, `history.json`, `workspace.json` y `.key`.
+`connections.json`, `queries.json` (cada consulta con `folder`, p. ej. `Reportes/Ventas`),
+`query-folders.json` (carpetas vacías), `history.json`, `workspace.json` y `.key`.
 **Nunca** se versionan ni se borran; el repositorio no contiene datos del usuario.
 
 ## Reglas (no romper)

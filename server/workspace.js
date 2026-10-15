@@ -8,6 +8,7 @@ import { dataFile, writeFileAtomic } from './paths.js';
 
 // File names, resolved against the (changeable) data folder on each access.
 const QUERIES = 'queries.json';
+const QUERY_FOLDERS = 'query-folders.json'; // folders that may still be empty
 const HISTORY = 'history.json';
 const WORKSPACE = 'workspace.json';
 const HISTORY_CAP = 500;
@@ -33,6 +34,7 @@ export function createQuery(data) {
     sql: data.sql || '',
     connectionId: data.connectionId || null,
     database: data.database || '',
+    folder: normFolder(data.folder),
     updatedAt: new Date().toISOString(),
   };
   list.push(q);
@@ -43,13 +45,17 @@ export function updateQuery(id, data) {
   const list = readJson(QUERIES, []);
   const idx = list.findIndex((x) => x.id === id);
   if (idx === -1) return null;
-  list[idx] = {
-    ...list[idx],
-    name: data.name ?? list[idx].name,
-    sql: data.sql ?? list[idx].sql,
-    database: data.database ?? list[idx].database,
-    updatedAt: new Date().toISOString(),
+  const prev = list[idx];
+  const next = {
+    ...prev,
+    name: data.name ?? prev.name,
+    sql: data.sql ?? prev.sql,
+    database: data.database ?? prev.database,
+    folder: data.folder !== undefined ? normFolder(data.folder) : (prev.folder || ''),
   };
+  // Moving to another folder doesn't count as an edit.
+  const edited = next.name !== prev.name || next.sql !== prev.sql || next.database !== prev.database;
+  list[idx] = { ...next, updatedAt: edited ? new Date().toISOString() : prev.updatedAt };
   writeJson(QUERIES, list);
   return list[idx];
 }
@@ -90,4 +96,45 @@ export function getWorkspace() {
 export function saveWorkspace(ws) {
   writeJson(WORKSPACE, { tabs: ws.tabs || [], activeTab: ws.activeTab ?? null });
   return true;
+}
+
+// ---------- Saved query folders ----------
+// A query's folder is a path like "Reportes/Ventas" ('' = root). Folders
+// exist while they hold queries; query-folders.json also keeps empty ones.
+export function normFolder(f) {
+  return String(f || '').split('/').map((x) => x.trim()).filter(Boolean).join('/');
+}
+const inFolder = (path, folder) => path === folder || path.startsWith(folder + '/');
+
+export function listQueryFolders() {
+  const set = new Set();
+  const add = (p) => { const parts = normFolder(p).split('/').filter(Boolean); for (let i = 1; i <= parts.length; i++) set.add(parts.slice(0, i).join('/')); };
+  readJson(QUERY_FOLDERS, []).forEach(add);
+  readJson(QUERIES, []).forEach((q) => add(q.folder));
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+export function createQueryFolder(path) {
+  const p = normFolder(path);
+  if (!p) throw new Error('Nombre de carpeta vacío');
+  const list = readJson(QUERY_FOLDERS, []);
+  if (!list.includes(p)) { list.push(p); writeJson(QUERY_FOLDERS, list); }
+  return listQueryFolders();
+}
+// Rename or move a folder (with its subfolders and queries): "A/B" -> "C/B".
+export function renameQueryFolder(from, to) {
+  const f = normFolder(from); const t = normFolder(to);
+  if (!f) throw new Error('Carpeta no válida');
+  if (t && inFolder(t, f)) throw new Error('No se puede mover una carpeta dentro de sí misma');
+  const move = (p) => (inFolder(p, f) ? normFolder(t + p.slice(f.length)) : p);
+  writeJson(QUERIES, readJson(QUERIES, []).map((q) => ({ ...q, folder: move(normFolder(q.folder)) })));
+  writeJson(QUERY_FOLDERS, [...new Set(readJson(QUERY_FOLDERS, []).map((p) => move(normFolder(p))).filter(Boolean))]);
+  return listQueryFolders();
+}
+// Delete a folder: its queries and subfolders move up one level (never deleted).
+export function deleteQueryFolder(path) {
+  const f = normFolder(path);
+  if (!f) throw new Error('Carpeta no válida');
+  const parent = f.includes('/') ? f.slice(0, f.lastIndexOf('/')) : '';
+  writeJson(QUERY_FOLDERS, readJson(QUERY_FOLDERS, []).filter((p) => normFolder(p) !== f));
+  return renameQueryFolder(f, parent);
 }

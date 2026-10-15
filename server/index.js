@@ -13,6 +13,7 @@ import {
 } from './sql.js';
 import {
   listQueries, createQuery, updateQuery, deleteQuery,
+  listQueryFolders, createQueryFolder, renameQueryFolder, deleteQueryFolder,
   addHistory, listHistory, clearHistory,
   getWorkspace, saveWorkspace,
 } from './workspace.js';
@@ -362,6 +363,10 @@ app.put('/api/queries/:qid', h(async (req, res) => {
   res.json(q);
 }));
 app.delete('/api/queries/:qid', h(async (req, res) => res.json({ ok: deleteQuery(req.params.qid) })));
+app.get('/api/query-folders', h(async (_req, res) => res.json(listQueryFolders())));
+app.post('/api/query-folders', h(async (req, res) => res.json(createQueryFolder(req.body?.path))));
+app.post('/api/query-folders/rename', h(async (req, res) => res.json(renameQueryFolder(req.body?.from, req.body?.to))));
+app.post('/api/query-folders/delete', h(async (req, res) => res.json(deleteQueryFolder(req.body?.path))));
 
 // ---------- Query history ----------
 app.get('/api/history', h(async (req, res) => res.json(listHistory(Number(req.query.limit) || 200))));
