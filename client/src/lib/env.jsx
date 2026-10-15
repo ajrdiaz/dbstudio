@@ -23,13 +23,24 @@ export function envColor(conn) {
   return conn.env ? `var(--env-${conn.env})` : null;
 }
 
+// Text color for a custom hex background: white or near-black, whichever
+// reads better (WCAG contrast). Theme colors (var(--env-*)) use white.
+export function textOn(color) {
+  const m = /^#([0-9a-f]{6})$/i.exec(color || '');
+  if (!m) return undefined;
+  const lum = [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16) / 255)
+    .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+    .reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0);
+  return 1.05 / (lum + 0.05) >= (lum + 0.05) / 0.0574 ? '#fff' : '#111318';
+}
+
 export function EnvBadge({ conn, small }) {
   const { t } = useI18n();
   if (!conn?.env && !conn?.readOnly) return null;
   return (
     <>
       {conn.env && (
-        <span className={'env-badge' + (small ? ' small' : '')} style={{ background: envColor(conn) }} title={t('env.' + conn.env)}>
+        <span className={'env-badge' + (small ? ' small' : '')} style={{ background: envColor(conn), color: textOn(conn.color) }} title={t('env.' + conn.env)}>
           {ENV_SHORT[conn.env]}
         </span>
       )}
@@ -47,7 +58,7 @@ export function EnvBanner({ connId }) {
   const loud = conn.env === 'production' || conn.env === 'staging' || conn.readOnly;
   if (!loud) return <div className="env-stripe" style={{ background: color }} />;
   return (
-    <div className="env-banner" style={{ background: color || 'var(--muted)' }}>
+    <div className={'env-banner' + (color ? '' : ' ro')} style={color ? { background: color, color: textOn(conn.color) } : undefined}>
       {conn.env === 'production' ? '⚠ ' : ''}{conn.env ? t('env.' + conn.env).toUpperCase() : ''}
       <span className="env-banner-name">{conn.name}</span>
       <span className="env-banner-hint">

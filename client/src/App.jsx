@@ -333,7 +333,7 @@ export default function App() {
                 onClick={() => setActiveTab(t.id)}
                 style={envColor(getConn(t.connId)) ? { boxShadow: `inset 0 3px 0 ${envColor(getConn(t.connId))}` } : undefined}
               >
-                {getConn(t.connId)?.env === 'production' && <EnvBadge conn={getConn(t.connId)} small />}
+                {(getConn(t.connId)?.env === 'production' || getConn(t.connId)?.readOnly) && <EnvBadge conn={getConn(t.connId)} small />}
                 <span className={t.modified ? 'tab-title-mod' : undefined}>{t.title}</span>
                 {t.modified && <span className="tab-modified" title={tr('tabs.modified')}>●</span>}
                 <button className="close" onClick={(e) => { e.stopPropagation(); closeTab(t.id); }}>✕</button>

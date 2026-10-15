@@ -20,6 +20,9 @@
   --env-testing: #2563eb;
   --env-staging: #d97706;
   --env-production: #dc2626;
+  /* read-only badge / banner (7.6:1) */
+  --ro-bg: #475569;
+  --ro-fg: #ffffff;
   --series-1: #2a78d6;
   --series-2: #eb6834;
   --series-3: #1baf7a;
@@ -51,6 +54,9 @@
   --env-testing: #3b82f6;
   --env-staging: #d98a0b;
   --env-production: #e5484d;
+  /* read-only badge / banner (12:1) */
+  --ro-bg: #cbd5e1;
+  --ro-fg: #12151b;
   --series-1: #3987e5;
   --series-2: #d95926;
   --series-3: #199e70;
@@ -450,7 +456,8 @@ pre.script-pre { max-height: 60vh; overflow: auto; white-space: pre; margin: 0; 
 /* ---------- Connection environments ---------- */
 .env-badge { display: inline-block; color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; padding: 1px 6px; border-radius: 3px; vertical-align: 1px; margin-left: 4px; line-height: 15px; }
 .env-badge.small { font-size: 9px; padding: 0 4px; line-height: 14px; }
-.env-badge.ro { background: var(--muted); }
+.env-badge.ro { background: var(--ro-bg); color: var(--ro-fg); }
+.env-banner.ro { background: var(--ro-bg); color: var(--ro-fg); }
 .tab .env-badge { margin-left: 0; }
 .env-stripe { height: 3px; flex: none; }
 .env-banner { flex: none; color: #fff; font-size: 12px; font-weight: 700; letter-spacing: 0.03em; padding: 3px 10px; display: flex; gap: 10px; align-items: baseline; }
