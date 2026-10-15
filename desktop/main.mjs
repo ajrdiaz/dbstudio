@@ -245,6 +245,8 @@ try {
   $p = Start-Process -FilePath $Installer -ArgumentList '/S' -PassThru
   while (-not $p.HasExited) { & $pump 200 }
   W ("installer exit " + $p.ExitCode)
+  # The exe was missing for a moment: Windows may have cached a generic icon.
+  try { Start-Process ie4uinit.exe -ArgumentList '-show' -Wait -WindowStyle Hidden } catch {}
 } catch { W ("error " + $_) }
 finally { $ni.Visible = $false; $ni.Dispose(); if ($form) { $form.Close() } }
 if (Test-Path -LiteralPath $Exe) {
@@ -285,6 +287,9 @@ function reportUpdate() {
   delete settings.updateFrom;
   saveSettings();
   const ok = cmpVer(app.getVersion(), from) > 0;
+  // While the installer replaced the exe Windows may have cached a generic
+  // taskbar icon; ask it to refresh its icon cache.
+  try { spawn('ie4uinit.exe', ['-show'], { stdio: 'ignore', windowsHide: true }).on('error', () => {}); } catch { /* ignore */ }
   log(ok ? 'updated' : 'update failed', from, '->', app.getVersion());
   new Notification({
     title: ok ? `DBStudio actualizado a ${app.getVersion()}` : 'No se pudo actualizar DBStudio',
@@ -388,8 +393,8 @@ app.whenReady().then(async () => {
   tray.on('click', showWindow);
   updateTray();
   setInterval(updateTray, 30000).unref();
+  reportUpdate(); // before the window: refreshes the icon cache after an update
   createWindow();
-  reportUpdate();
   setTimeout(() => checkUpdate(), 15000);
   setInterval(() => checkUpdate(), 30 * 60 * 1000).unref();
 });
