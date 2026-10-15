@@ -5,9 +5,10 @@ import History from './History.jsx';
 import { useI18n } from '../i18n.jsx';
 import { EnvBadge, envColor } from '../lib/env.jsx';
 import { askText } from '../lib/dialogs.jsx';
+import { useConnStatus } from '../lib/connStatus.js';
 
 // Reusable tree node.
-function Node({ label, icon, caret, open, selected, onToggle, onClick, onDouble, right, children, depth = 0, stripe, drag }) {
+function Node({ label, icon, iconClass, iconTitle, caret, open, selected, onToggle, onClick, onDouble, right, children, depth = 0, stripe, drag }) {
   return (
     <div className="tnode">
       <div
@@ -21,7 +22,7 @@ function Node({ label, icon, caret, open, selected, onToggle, onClick, onDouble,
         <span className="caret" onClick={(e) => { e.stopPropagation(); onToggle?.(); }}>
           {caret ? (open ? '▼' : '▶') : ''}
         </span>
-        <span className="icon">{icon}</span>
+        <span className={'icon' + (iconClass ? ' ' + iconClass : '')} title={iconTitle}>{icon}</span>
         <span className="label">{label}</span>
         {right}
       </div>
@@ -44,6 +45,7 @@ export default function Sidebar({
   onOpenDesigner, onOpenServer, onOpenTools, onOpenSearch, onOpenCode, onOpenDatabase, onImport, schemaVersion, savedReloadKey, onOpenSavedQuery, onOpenHistory, toast,
 }) {
   const { t } = useI18n();
+  const connStatus = useConnStatus();
   // expansion + lazy-loaded data keyed by node path
   const [expanded, setExpanded] = useState({});
   const [dbs, setDbs] = useState({});       // connId -> [db]
@@ -242,13 +244,16 @@ export default function Sidebar({
         {groupLayout(connections, (c) => {
           const ckey = `c:${c.id}`;
           const connOpen = expanded[ckey];
+          const down = connStatus[c.id]?.down;
           return (
             <Node
               key={c.id}
               label={<>{c.name} <EnvBadge conn={c} small /></>}
               stripe={envColor(c)}
               drag={c.id}
-              icon={connOpen ? '🖧︎' : '🖳︎'}
+              icon={connOpen && !down ? '🖧︎' : '🖳︎'}
+              iconClass={down ? 'conn-down' : undefined}
+              iconTitle={down ? t('side.connDown', { msg: connStatus[c.id].message }) : undefined}
               caret open={connOpen}
               selected={active?.id === c.id}
               onToggle={() => expandConn(c)}

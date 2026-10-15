@@ -60,6 +60,7 @@ export function openTunnel(ssh, dstHost, dstPort, onClose) {
     });
     client.on('error', (e) => {
       const err = new Error(`SSH: ${e.level === 'client-authentication' ? 'autenticación fallida' : e.message}`);
+      err.code = 'SSH_FAILED';
       if (!settled) { settled = true; reject(err); }
     });
     client.on('close', () => {
@@ -70,7 +71,7 @@ export function openTunnel(ssh, dstHost, dstPort, onClose) {
       client.connect(sshConfig(ssh));
     } catch (e) {
       settled = true;
-      reject(new Error(`SSH: ${e.message}`));
+      reject(Object.assign(new Error(`SSH: ${e.message}`), { code: 'SSH_FAILED' }));
     }
   });
 }

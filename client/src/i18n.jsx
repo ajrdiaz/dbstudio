@@ -6,8 +6,6 @@ const DICT = {
   es: {
     'nav.newConnection': '＋ Nueva conexión',
     'nav.newQuery': '⌨︎ Nueva consulta',
-    'nav.connected': 'Conectado: {name}',
-    'nav.noConnection': 'Sin conexión activa',
     'nav.toggleTheme': 'Cambiar tema',
     'nav.light': '☀ Claro',
     'nav.dark': '🌙 Oscuro',
@@ -567,6 +565,7 @@ const DICT = {
     'side.design': 'Diseñar (alterar)',
     'side.structure': 'Estructura',
     'side.sqlEditor': 'Editor SQL',
+    'side.connDown': 'Sin conexión: {msg}',
     'side.edit': 'Editar',
     'side.delete': 'Eliminar',
     'side.tables': 'Tablas',
@@ -715,8 +714,6 @@ const DICT = {
   en: {
     'nav.newConnection': '＋ New connection',
     'nav.newQuery': '⌨︎ New query',
-    'nav.connected': 'Connected: {name}',
-    'nav.noConnection': 'No active connection',
     'nav.toggleTheme': 'Toggle theme',
     'nav.light': '☀ Light',
     'nav.dark': '🌙 Dark',
@@ -1276,6 +1273,7 @@ const DICT = {
     'side.design': 'Design (alter)',
     'side.structure': 'Structure',
     'side.sqlEditor': 'SQL editor',
+    'side.connDown': 'Unreachable: {msg}',
     'side.edit': 'Edit',
     'side.delete': 'Delete',
     'side.tables': 'Tables',

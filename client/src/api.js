@@ -1,13 +1,23 @@
 // Thin fetch wrapper around the backend API.
+import { isConnError, setConnStatus } from './lib/connStatus.js';
+
 const BASE = '/api';
 
 async function req(path, opts = {}) {
+  // Calls that talk to a connection's server (/connections/:id/...) update its health.
+  const connId = /^\/connections\/([^/?]+)\/./.exec(path)?.[1];
   const res = await fetch(BASE + path, {
     headers: { 'Content-Type': 'application/json' },
     ...opts,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   const ct = res.headers.get('content-type') || '';
+  if (connId && ct.includes('application/json')) {
+    const j = await res.clone().json().catch(() => null);
+    const code = res.ok ? j?.error?.code : j?.code;
+    if (isConnError(code)) setConnStatus(connId, true, (res.ok ? j.error.message : j.error) || code);
+    else if (res.ok) setConnStatus(connId, false);
+  }
   if (!res.ok) {
     let msg = res.statusText;
     let code = null;

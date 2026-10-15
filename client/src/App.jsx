@@ -15,6 +15,7 @@ import DatabaseTab from './components/DatabaseTab.jsx';
 import ImportModal from './components/ImportModal.jsx';
 import AlertsTab from './components/AlertsTab.jsx';
 import { useAlertStream, browserNotify } from './lib/alerts.js';
+import { setConnStatus } from './lib/connStatus.js';
 import { PromptHost } from './lib/dialogs.jsx';
 import { useI18n } from './i18n.jsx';
 import { tabHasOpenTx, anyOpenTx, releaseAllSessions } from './lib/editorSessions.js';
@@ -81,6 +82,7 @@ export default function App() {
   }, []);
   useEffect(() => { refreshAlertCount(); }, [refreshAlertCount]);
   useAlertStream((ev) => {
+    if (ev.type === 'down' && ev.kind !== 'reminder') setConnStatus(ev.connId, ev.kind === 'fired', ev.message);
     refreshAlertCount();
     setAlertsVersion((v) => v + 1);
     const title = ev.kind === 'resolved' ? t('al.notifResolved', { name: ev.connName }) : t('al.notifFired', { name: ev.connName });
@@ -282,8 +284,6 @@ export default function App() {
         {active && <button onClick={() => openServer(active.id)} title={t('admin.title')}>{t('nav.server')}</button>}
         {connections.length > 0 && <button onClick={() => openTools(active ? { connId: active.id } : null)} title={t('tools.title')}>⇄ {t('tools.tabTitle')}</button>}
         <span className="spacer" />
-        <span className="count">{active ? t('nav.connected', { name: active.name }) : t('nav.noConnection')}</span>
-        {active && <EnvBadge conn={active} small />}
         <select title={t('nav.language')} value={lang} onChange={(e) => setLang(e.target.value)}>
           <option value="es">🇪🇸 ES</option>
           <option value="en">🇬🇧 EN</option>

@@ -156,6 +156,8 @@ input, select, textarea {
 .tnode .row.selected { background: var(--accent-soft); }
 .tnode .caret { width: 12px; color: var(--muted); font-size: 10px; }
 .tnode .icon { width: 16px; text-align: center; color: var(--muted); }
+.tnode .icon.conn-down { position: relative; color: var(--danger); opacity: 0.85; }
+.tnode .icon.conn-down::after { content: '✕\FE0E'; position: absolute; right: -3px; bottom: -3px; font-size: 9px; font-weight: 700; line-height: 1; color: var(--danger); background: var(--panel); border-radius: 50%; padding: 0 1px; }
 .tnode .children { padding-left: 14px; }
 .tnode .label { overflow: hidden; text-overflow: ellipsis; }
 .tnode .count { color: var(--muted); font-size: 11px; margin-left: 4px; }
