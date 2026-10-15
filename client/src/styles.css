@@ -534,6 +534,7 @@ body.resizing { cursor: col-resize; user-select: none; }
 
 /* ---------- Transactions ---------- */
 .editor-toolbar .autocommit { font-size: 12px; white-space: nowrap; }
+.editor-toolbar .tb-icon { min-width: 32px; padding: 4px 8px; font-size: 14px; line-height: 18px; text-align: center; }
 .tx-state { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: var(--grid-head); color: var(--muted); white-space: nowrap; }
 .tx-state.open { background: #e07a14; color: #fff; font-weight: 700; }
 :root[data-theme="dark"] .tx-state.open { background: #f0a040; color: #2b1600; }

@@ -358,16 +358,15 @@ export default function QueryTab({ tabId, connId, database, initialSql, savedQue
     <div className="editor-pane">
       <div className="editor-toolbar">
         {running ? (
-          <button className="danger-solid" onClick={cancelRun} disabled={cancelling} title={t('tx.cancelTitle')}>
-            {cancelling ? t('tx.cancelling') : t('tx.cancel')}
-          </button>
+          <IconButton className="danger-solid" onClick={cancelRun} disabled={cancelling}
+            label={cancelling ? t('tx.cancelling') : t('tx.cancelTitle')} icon="■" />
         ) : (
-          <button className="primary" onClick={() => run('current')} title={t('query.runTitle')}>{t('query.run')}</button>
+          <IconButton className="primary" onClick={() => run('current')} label={t('query.runTitle')} icon="▶︎" />
         )}
-        <button onClick={() => run('all')} disabled={running} title={t('query.runAllTitle')}>{t('query.runAll')}</button>
-        <button onClick={saveQuery} title={t('query.saveTitle')}>💾︎ {linkedQuery ? t('query.update') : t('query.save')}</button>
-        <button onClick={() => formatSql('auto')} title={t('query.formatTitle')}>{t('query.format')}</button>
-        <button onClick={explain} disabled={running} title={t('explain.title')}>{t('explain.button')}</button>
+        <IconButton onClick={() => run('all')} disabled={running} label={t('query.runAllTitle')} icon="▶︎▶︎" />
+        <IconButton onClick={saveQuery} label={linkedQuery ? t('query.updateTitle') : t('query.saveTitle')} icon="💾︎" />
+        <IconButton onClick={() => formatSql('auto')} label={t('query.formatTitle')} icon="≡" />
+        <IconButton onClick={explain} disabled={running} label={t('explain.title')} icon="⚡︎" />
         <label className="count">{t('query.db')}</label>
         <select value={db} onChange={(e) => setDb(e.target.value)} className="db-pick">
           <option value="">{t('query.none')}</option>
@@ -394,7 +393,7 @@ export default function QueryTab({ tabId, connId, database, initialSql, savedQue
           </>
         )}
         <span style={{ flex: 1 }} />
-        <button onClick={() => setSql('')}>{t('query.clear')}</button>
+        <IconButton onClick={() => setSql('')} label={t('query.clearTitle')} icon="⌫" />
       </div>
       <div className="editor-host" style={{ height: `${editorPct}%` }}>
         <Editor
@@ -548,4 +547,14 @@ function flash(ed, a, b) {
       ed.setPosition(pos);
     }
   }, 350);
+}
+
+// Toolbar button that shows only an icon; the description (with shortcut) is
+// the tooltip and the accessible name.
+function IconButton({ icon, label, className = '', ...props }) {
+  return (
+    <button className={('tb-icon ' + className).trim()} title={label} aria-label={label} {...props}>
+      <span aria-hidden="true">{icon}</span>
+    </button>
+  );
 }
